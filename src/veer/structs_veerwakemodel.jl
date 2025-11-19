@@ -19,7 +19,14 @@ allocations. After calling `runFLORIS!`, the following fields contain results:
 - `T_weight::Vector{Float64}`: Gaussian weight factors used for wake overlap.
     For N turbines, length is `max(N-1, 0)`. Empty for single-turbine runs.
 """
-mutable struct FLORISBuffers
+
+
+"""
+    VEERbuffers documentation to add ...
+    add the required data here...
+"""
+
+mutable struct VEERWAKEMODELBuffers
     tmp_RPs::Matrix{Float64}
     rotor_pts::Matrix{Float64}
     # Preallocated arrays for getVars! outputs
@@ -47,4 +54,5 @@ mutable struct FLORISBuffers
     T_aTI_arr::Vector{Float64}
     T_Ueff::Vector{Float64}    # length 1 when set
     T_weight::Vector{Float64}
+    
 end
