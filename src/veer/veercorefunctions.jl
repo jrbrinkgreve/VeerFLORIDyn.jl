@@ -20,6 +20,11 @@ runFLORIS! function and its helpers have been moved to runfloris.jl for better
 code organization.
 =#
 
+
+
+#note: below functions to not need to be exported again, already in floris export
+
+#=
 """
     calcCt(a::Number, _) -> Float64
     calcCt(a::AbstractVector, _) -> AbstractVector
@@ -34,8 +39,9 @@ end
     return 4 .* a .* (1 .- a)
 end
 
+=#
 """
-        getVars!(sig_y, sig_z, x_0, delta, pc_y, pc_z, rps, c_t, yaw, ti, ti0, floris::Floris, d_rotor)
+        getVeerVars!(sig_y, sig_z, x_0, delta, pc_y, pc_z, rps, c_t, yaw, ti, ti0, floris::Floris, d_rotor)
 
 Compute Gaussian wake widths, deflection, potential-core radii, and onset distance at observation points, in-place.
 
@@ -82,7 +88,7 @@ getVars!(sig_y, sig_z, x0, delta, pc_y, pc_z, RPs, Ct, yaw, TI, TI0, floris, D)
 Returns
 - `nothing` — all results are written into the provided arrays.
 """
-function getVars!(sig_y::AbstractVector{<:Real},
+function getVeerVars!(sig_y::AbstractVector{<:Real},
                   sig_z::AbstractVector{<:Real},
                   x_0::AbstractVector{<:Real},
                   delta::AbstractMatrix{<:Real},
@@ -213,7 +219,7 @@ deflection matrix without allocating temporary arrays.
 
 See also: [`getVars!`](@ref)
 """
-function centerline!(deflection::AbstractMatrix,
+function veercenterline!(deflection::AbstractMatrix,
                      states_op, states_t, states_wf, floris::Floris, d_rotor)
     n = size(states_op, 1)
     # Prepare minimal RPs matrix: only downstream distance (OPdw) is needed (col 1)
@@ -289,7 +295,7 @@ println("Number of turbine states: ", states.Turbine)
 
 See also: [`States()`](@ref)
 """
-mutable struct States
+mutable struct VeerStates
     T_names::Vector{String}
     Turbine::Int
     OP_names::Vector{String}
@@ -314,21 +320,21 @@ for wind farm simulations using the FLORIS wake model.
 
 # Example
 ```julia
-states = States()
-@assert states.Turbine == 3
-@assert states.T_names == ["a", "yaw", "TI"]
+veerstates = VeerStates()
+@assert veerstates.Turbine == 3
+@assert veerstates.T_names == ["a", "yaw", "TI"]
 ```
 
 See also: [`States`](@ref)
 """
-function States()
+function VeerStates()
     T_names = ["a", "yaw", "TI"]
     Turbine = length(T_names)
     OP_names = ["x0", "y0", "z0", "x1", "y1", "z1"]
     OP = length(OP_names)
     WF_names = ["wind_vel", "wind_dir", "TI0"]
     WF = length(WF_names)
-    return States(T_names, Turbine, OP_names, OP, WF_names, WF)
+    return VeerStates(T_names, Turbine, OP_names, OP, WF_names, WF)
 end
 
 """
@@ -370,7 +376,7 @@ The function performs the following initialization steps for each turbine:
 - Handles both 3D and 4D wind field configurations (with optional orientation data)
 - Uses SOWFA coordinate system conventions for angle transformations
 """
-function init_states(set::Settings, wf::WindFarm, wind::Wind, init_turb, floris::Floris, sim::Sim)
+function init_veerstates(set::Settings, wf::WindFarm, wind::Wind, init_turb, floris::Floris, sim::Sim)
     # Unpack state arrays and parameters
     states_op   = copy(wf.States_OP)
     states_t    = copy(wf.States_T)
@@ -488,7 +494,7 @@ f_yaw_constraints = [0.5 × tanh((γ_max - γ) × 50) + 0.5] ×
 - Axial induction factors are extracted from `wf.States_T[wf.StartI, 1]` for current time step
 - Yaw angles are converted from degrees to radians internally
 """
-function getPower(wf::WindFarm, m::AbstractMatrix, floris::Floris, con::Con)
+function getVeerPower(wf::WindFarm, m::AbstractMatrix, floris::Floris, con::Con)
     a   = wf.States_T[wf.StartI, 1]
     yaw = deg2rad.(wf.States_T[wf.StartI, 2])
     
@@ -547,7 +553,7 @@ which is typically slower than the freestream wind speed due to velocity deficit
 # References
 - Zong, H. and Porté-Agel, F. (2020). A momentum-conserving wake superposition method for wind farm power prediction
 """
-function getUadv(states_op, states_t, states_wf, floris::Floris, d_rotor)
+function getVeerUadv(states_op, states_t, states_wf, floris::Floris, d_rotor)
     # Parameters
     k_a   = floris.k_a
     k_b   = floris.k_b

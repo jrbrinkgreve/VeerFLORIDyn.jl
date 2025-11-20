@@ -1,6 +1,9 @@
 # Copyright (c) 2025 Marcus Becker, Uwe Fechner
 # SPDX-License-Identifier: BSD-3-Clause
 
+
+#NOTE: THIS FILE IS NOT INCLUDED CURRENTLY IN FLORIDYN.JL
+
 #=
 This file contains rotor discretization functions for the FLORIS wake model.
 
@@ -33,7 +36,7 @@ returned arrays, as they are shared within the thread.
 
 # Returns
 - `(m_rp, w)` where:
-  - `m_rp::Matrix{Float64}`: Size `(nC, 3)`; first column zeros, columns 2–3 are
+  - `m_rp::Matrix{Float64}`: Size `(nC, 3)`; first column zeros, columns 2-3 are
     normalized coordinates in `[-0.5, 0.5]`.
   - `w::Vector{Float64}`: Weights per cell that sum to approximately 1.
 

@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """
-    FLORISBuffers
+    VEERWAKEMODELBuffers
 
-Pre-allocated buffers for the runFLORIS! computation to minimize allocations.
+Pre-allocated buffers for the runVEERWAKEMODEL! computation to minimize allocations.
 
 This struct also persists result arrays so callers can read outputs without
-allocations. After calling `runFLORIS!`, the following fields contain results:
+allocations. After calling `runVEERWAKEMODEL`, the following fields contain results:
 
 # Output Fields
 - `T_red_arr::Vector{Float64}`: Per-turbine velocity reduction factors. For a
@@ -22,8 +22,9 @@ allocations. After calling `runFLORIS!`, the following fields contain results:
 
 
 """
-    VEERbuffers documentation to add ...
-    add the required data here...
+    VEERbuffers
+    
+
 """
 
 mutable struct VEERWAKEMODELBuffers

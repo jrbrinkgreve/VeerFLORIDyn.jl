@@ -20,18 +20,21 @@ specialized helper functions. The FLORISBuffers struct is defined in structs_flo
 """
     VEERWAKEMODELBuffers(n_pts::Int)::VEERWAKEMODELBuffers
 
-Constructor for FLORISBuffers struct that pre-allocates all necessary arrays for FLORIS computation.
+Constructor for VEERWAKEMODELBuffers struct that pre-allocates all necessary arrays for VEERWAKEMODEL computation.
 
 # Arguments
 - `n_pts::Int`: Number of rotor discretization points to allocate for
 
 # Returns
-- `FLORISBuffers`: Initialized struct with all arrays pre-allocated to size `n_pts`
+- `VEERWAKEMODELBuffers`: Initialized struct with all arrays pre-allocated to size `n_pts`
 
 # Notes
 - Result arrays (T_red_arr, T_aTI_arr, T_Ueff, T_weight) are initialized as empty and resized during computation
-- This constructor minimizes allocations during FLORIS wake model execution
+- This constructor minimizes allocations during veer wake model execution
 """
+
+
+
 function VEERWAKEMODELBuffers(n_pts::Int)::VEERWAKEMODELBuffers
     return VEERWAKEMODELBuffers(
         Matrix{Float64}(undef, n_pts, 3),  # tmp_RPs
@@ -61,6 +64,8 @@ function VEERWAKEMODELBuffers(n_pts::Int)::VEERWAKEMODELBuffers
         Float64[],                         # T_weight (size set per call)
     )
 end
+
+
 
 """
     prepare_rotor_points!(buffers::FLORISBuffers, location_t, states_t, d_rotor, floris::Floris)
@@ -160,7 +165,7 @@ the appropriate buffer arrays. It returns early to avoid the multi-turbine wake 
 # Note
 This function is **private** and intended for internal use only.
 """
-function handle_single_turbine!(buffers::FLORISBuffers, RPl, RPw, location_t, set::Settings, 
+function handle_single_turbine!(buffers::VEERWAKEMODELBuffers, RPl, RPw, location_t, set::Settings, 
                                windshear, d_rotor)
     # Avoid allocating RPl[:,3] and the broadcasted division by using a buffer
     nRP_local = size(RPl, 1)
@@ -216,7 +221,7 @@ the main computation loop.
 # Note
 This function is **private** and intended for internal use only.
 """
-function setup_computation_buffers!(buffers::FLORISBuffers, nRP::Int, nT::Int)
+function setup_computation_buffers!(buffers::VEERWAKEMODELBuffers, nRP::Int, nT::Int)
     # Initialize outputs in buffers
     resize!(buffers.T_red_arr, nT); fill!(buffers.T_red_arr, 1.0)
     resize!(buffers.T_aTI_arr, max(nT - 1, 0))
@@ -295,7 +300,7 @@ calculations, and Gaussian wake modeling.
 # Note
 This function is **private** and intended for internal use only.
 """
-function compute_wake_effects!(buffers::FLORISBuffers, views, iT::Int, RPl, RPw, location_t, 
+function compute_wake_effects!(buffers::VEERWAKEMODELBuffers, views, iT::Int, RPl, RPw, location_t, 
                               states_wf, states_t, d_rotor, floris::Floris, nRP::Int)
     tmp_RPs, sig_y, sig_z, x_0, delta, pc_y, pc_z, cw_y, cw_z, phi_cw, r_cw, 
     core, nw, fw, tmp_RPs_r, gaussAbs, gaussWght, exp_y, exp_z, not_core = views
@@ -477,7 +482,7 @@ the final effective wind speed by combining all wake effects and wind shear.
 # Note
 This function is **private** and intended for internal use only.
 """
-function compute_final_wind_shear!(buffers::FLORISBuffers, RPl, RPw, location_t, set::Settings, 
+function compute_final_wind_shear!(buffers::VEERWAKEMODELBuffers, RPl, RPw, location_t, set::Settings, 
                                   windshear, tmp_RPs_r, states_wf)
     nRP = size(RPl, 1)
     
@@ -597,7 +602,7 @@ The function implements state-of-the-art wake modeling based on:
 - [`FLORISBuffers`](@ref): Buffer structure documentation
 - [`Floris`](@ref): FLORIS model parameters
 """
-function runFLORIS!(buffers::FLORISBuffers, set::Settings, location_t, states_wf, states_t, d_rotor, floris, 
+function runFLORIS!(buffers::VEERWAKEMODELBuffers, set::Settings, location_t, states_wf, states_t, d_rotor, floris, 
                    windshear::Union{Matrix, WindShear})
     # Prepare rotor points (RPl, RPw)
     RPl, RPw = prepare_rotor_points!(buffers, location_t, states_t, d_rotor, floris)
