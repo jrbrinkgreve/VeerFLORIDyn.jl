@@ -6,13 +6,13 @@ This file contains core functions for the Gaussian wake model implementation in 
 
 Functions and structures defined in this file:
 - calcCt: Calculate thrust coefficient from axial induction factor (scalar and vectorized versions)
-- getVars!: Compute Gaussian wake widths, deflection, potential-core radii, and onset distance
-- centerline!: Compute cross-wind wake deflection at observation points
-- States (struct): Container for state variable names and counts 
-- States(): Default constructor for States struct with predefined variables
-- init_states: Initialize state arrays for wind farm simulation
-- getPower: Calculate power output of wind turbines accounting for yaw effects
-- getUadv: Calculate advection speed factor based on Zong & Porté-Agel 2020
+- getVeerVars!: Compute Gaussian wake widths, deflection, potential-core radii, and onset distance
+- veercenterline!: Compute cross-wind wake deflection at observation points
+- VeerStates (struct): Container for state variable names and counts 
+- VeerStates(): Default constructor for States struct with predefined variables
+- init_veerstates: Initialize state arrays for wind farm simulation
+- getVeerPower: Calculate power output of wind turbines accounting for yaw effects
+- getVeerUadv: Calculate advection speed factor based on Zong & Porté-Agel 2020
 
 This file provides the mathematical foundation for the Gaussian wake model, including
 wake expansion calculations, deflection modeling, and state management. The main
@@ -82,7 +82,7 @@ x0    = similar(RPs[:, 1])
 delta = zeros(n, 2)
 pc_y  = similar(RPs[:, 1])
 pc_z  = similar(RPs[:, 1])
-getVars!(sig_y, sig_z, x0, delta, pc_y, pc_z, RPs, Ct, yaw, TI, TI0, floris, D)
+getVeerVars!(sig_y, sig_z, x0, delta, pc_y, pc_z, RPs, Ct, yaw, TI, TI0, floris, D)
 ```
 
 Returns
@@ -273,7 +273,7 @@ variable names and counts currently used by FLORIDyn.jl.
 
 # Example
 ```julia
-states = States()
+veerstates = VeerStates()
 println("Turbine states: ", states.T_names)
 println("Number of turbine states: ", states.Turbine)
 ```
