@@ -1,6 +1,6 @@
 #structs for memory buffers
 
-mutable struct teststruct
+mutable struct bufferstruct
     alpha::Vector{Float64}
     beta::Vector{Float64}
     gamma::Vector{Float64}
