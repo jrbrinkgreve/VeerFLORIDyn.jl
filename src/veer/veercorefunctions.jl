@@ -575,6 +575,7 @@ function getVeerUadv(states_op, states_t, states_wf, floris::Floris, d_rotor)
     # [2] Eq.8
     k_y = k_a .* I .+ k_b
     k_z = k_y
+    
 
     # Get field width y
     # [1] Eq. 7.2

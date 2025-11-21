@@ -90,7 +90,7 @@ in the buffers to avoid allocations.
 # Note
 This function is **private** and intended for internal use only.
 """
-function prepare_rotor_points!(buffers::VEERWAKEMODELBuffers, location_t, states_t, d_rotor, floris::Floris)
+function veer_prepare_rotor_points!(buffers::VEERWAKEMODELBuffers, location_t, states_t, d_rotor, floris::Floris)
     if d_rotor[end] > 0
         RPl, RPw = discretizeRotor(floris.rotor_points)
     else
@@ -165,7 +165,7 @@ the appropriate buffer arrays. It returns early to avoid the multi-turbine wake 
 # Note
 This function is **private** and intended for internal use only.
 """
-function handle_single_turbine!(buffers::VEERWAKEMODELBuffers, RPl, RPw, location_t, set::Settings, 
+function veer_handle_single_turbine!(buffers::VEERWAKEMODELBuffers, RPl, RPw, location_t, set::Settings, 
                                windshear, d_rotor)
     # Avoid allocating RPl[:,3] and the broadcasted division by using a buffer
     nRP_local = size(RPl, 1)
@@ -221,7 +221,7 @@ the main computation loop.
 # Note
 This function is **private** and intended for internal use only.
 """
-function setup_computation_buffers!(buffers::VEERWAKEMODELBuffers, nRP::Int, nT::Int)
+function veer_setup_computation_buffers!(buffers::VEERWAKEMODELBuffers, nRP::Int, nT::Int)
     # Initialize outputs in buffers
     resize!(buffers.T_red_arr, nT); fill!(buffers.T_red_arr, 1.0)
     resize!(buffers.T_aTI_arr, max(nT - 1, 0))
@@ -300,7 +300,7 @@ calculations, and Gaussian wake modeling.
 # Note
 This function is **private** and intended for internal use only.
 """
-function compute_wake_effects!(buffers::VEERWAKEMODELBuffers, views, iT::Int, RPl, RPw, location_t, 
+function veer_compute_wake_effects!(buffers::VEERWAKEMODELBuffers, views, iT::Int, RPl, RPw, location_t, 
                               states_wf, states_t, d_rotor, floris::Floris, nRP::Int)
     tmp_RPs, sig_y, sig_z, x_0, delta, pc_y, pc_z, cw_y, cw_z, phi_cw, r_cw, 
     core, nw, fw, tmp_RPs_r, gaussAbs, gaussWght, exp_y, exp_z, not_core = views
@@ -482,7 +482,7 @@ the final effective wind speed by combining all wake effects and wind shear.
 # Note
 This function is **private** and intended for internal use only.
 """
-function compute_final_wind_shear!(buffers::VEERWAKEMODELBuffers, RPl, RPw, location_t, set::Settings, 
+function veer_compute_final_wind_shear!(buffers::VEERWAKEMODELBuffers, RPl, RPw, location_t, set::Settings, 
                                   windshear, tmp_RPs_r, states_wf)
     nRP = size(RPl, 1)
     
@@ -602,7 +602,7 @@ The function implements state-of-the-art wake modeling based on:
 - [`FLORISBuffers`](@ref): Buffer structure documentation
 - [`Floris`](@ref): FLORIS model parameters
 """
-function runFLORIS!(buffers::VEERWAKEMODELBuffers, set::Settings, location_t, states_wf, states_t, d_rotor, floris, 
+function runVEERWAKEMODEL!(buffers::VEERWAKEMODELBuffers, set::Settings, location_t, states_wf, states_t, d_rotor, floris, 
                    windshear::Union{Matrix, WindShear})
     # Prepare rotor points (RPl, RPw)
     RPl, RPw = prepare_rotor_points!(buffers, location_t, states_t, d_rotor, floris)

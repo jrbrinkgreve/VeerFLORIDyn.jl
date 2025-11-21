@@ -31,10 +31,11 @@ mutable struct VEERWAKEMODELBuffers
     tmp_RPs::Matrix{Float64}
     rotor_pts::Matrix{Float64}
     # Preallocated arrays for getVars! outputs
+    
     sig_y::Vector{Float64}
     sig_z::Vector{Float64}
     x_0::Vector{Float64}
-    delta::Matrix{Float64}   # n×2
+    delta::Matrix{Float64}   # n×2          #old floris stuff, to change
     pc_y::Vector{Float64}
     pc_z::Vector{Float64}
     cw_y::Vector{Float64}
@@ -50,10 +51,25 @@ mutable struct VEERWAKEMODELBuffers
     exp_y::Vector{Float64}
     exp_z::Vector{Float64}
     not_core::Vector{Bool}
+    
+    #veer stuff
+    #=
+    alpha::Vector{Float64}
+    beta::Vector{Float64}
+    gamma::Vector{Float64}
+    a_star::Vector{Float64}
+    xi_0_hat::Vector{Float64}
+    rotmtx::Matrix{Float64}
+    =#
+    #... continue 
+   
+    
+
+
     # Result arrays (persisted in buffers to avoid fresh allocations)
     T_red_arr::Vector{Float64}
     T_aTI_arr::Vector{Float64}
     T_Ueff::Vector{Float64}    # length 1 when set
     T_weight::Vector{Float64}
-    
+
 end

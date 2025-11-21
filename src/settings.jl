@@ -337,6 +337,8 @@ A mutable struct representing the settings for the FLORIDyn simulation.
     rotor_points::Union{Nothing, Int64} = nothing
 end
 
+
+
 """
     FloriDyn
 

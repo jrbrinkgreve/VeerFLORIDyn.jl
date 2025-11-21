@@ -64,6 +64,9 @@ export get_default_project
 export select_project
 export get_default_msr, set_default_msr, select_measurement
 
+#added veer stuff:
+export runVEERWAKEMODEL!
+
 """
     MSR `VelReduction` `AddedTurbulence` `EffWind`
 
