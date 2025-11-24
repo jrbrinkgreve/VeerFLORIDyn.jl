@@ -1,6 +1,10 @@
 #structs for memory buffers
 
 mutable struct bufferstruct
+    nRP::Int
+    rps_coords::Matrix{Float64}  # 3 x nRP
+
+    #for getVeerVars! outputs
     alpha::Vector{Float64}
     beta::Vector{Float64}
     gamma::Vector{Float64}
@@ -31,7 +35,14 @@ mutable struct bufferstruct
     c::Vector{Float64}
     du::Vector{Float64}
     u::Vector{Float64}
-
+ 
+   
 end
 
+
+
+struct Params
+    #parameters for computations
+    alpha_gradient::Float64
+end
 
