@@ -1,5 +1,5 @@
 #funcs.jl
-
+using Debugger
 
 
 #constructor for bufferstruct
@@ -7,7 +7,7 @@ function bufferstruct(nRP::Int)::bufferstruct
     return bufferstruct(
         #input vars
         nRP,
-        Matrix{Float64}(undef, 3, nRP),  #rps_coords    
+        Matrix{Float64}(undef, nRP, 3),  #rps_coords    
         #for getVeerVars! outputs
         Vector{Float64}(undef, nRP),   #alpha, height dependent veer angle
         Vector{Float64}(undef, nRP),   #beta
@@ -15,7 +15,7 @@ function bufferstruct(nRP::Int)::bufferstruct
         Vector{Float64}(undef, nRP),   #a_star
         Vector{Float64}(undef, nRP),   #xi_0_hat
         Matrix{Float64}(undef, 3, 3),  #rotmtx
-        Matrix{Float64}(undef, 3, nRP),#coords_veered
+        Matrix{Float64}(undef, nRP, 3),#coords_veered
         Vector{Float64}(undef, nRP),   #t_hat
         Vector{Float64}(undef, nRP),   #sgn_t_hat
         Vector{Float64}(undef, nRP),   #abs_t_hat
@@ -48,20 +48,32 @@ end
 
 
 
-
-#constructor for Params struct
 function Params()::Params
     return Params(
-        0.05,
+        #example parameter values from Mohammadi et al.
+        0.05,    #alpha_gradient
+        63.0,   #R                          #import these later from turbine data
+        126.0,  #D
+        90.0,  #z_hub
+        8.0,    #u_hub
+        0.4,    #u_star 
+        0.6,    #k
+        0.66,    #CT
+        1e-10,   #angle_tolerance for chi computation
+        8.0,     #lambda, TSR
+        15.0,     #beta, yaw angle in degrees
     )
 end
 
 
 #custom RP data generator for testing
-function generate_RP_data(nRP::Int)
-    RP_coords = 100*rand(3, nRP)  #example: random coordinates for rps_coords
-    return nRP, RP_coords
-end
+function generate_RP_data(nRP::Int, par::Params)
+    RP_coords = zeros(nRP, 3);   
+    RP_coords[:,1] = 10.0* par.D * rand(nRP,1)           #example: random coordinates for rps_coords, tall matrix with 3 cols [x1, y1, z1]
+    RP_coords[:,2] = 6.0 * par.D * (rand(nRP,1) .- 0.5)  # y deviation                                                        [x2, y2, z2] etc
+    RP_coords[:,3] = 1.0 * par.D * (rand(nRP,1) .- 0.5)  # z deviation  
+    return nRP, RP_coords      
+end 
 
 
 
@@ -112,15 +124,39 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
     nRP, rps_coords, alpha, beta, gamma, a_star, xi_0_hat, rotmtx,
     coords_veered, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c,
     theta, xi_0, xi_hat, chi, a, c1, c2, c3, c4, c5, c6, c7,
-    xi, sigma, sigma_hat_squared, c, du, u = views
-   
+    xi, sigma, sigma_hat_squared, c, du, u = views #use pointers to buffer
+    rps_coords = RP_data[2]
     for i in 1:nRP
         #do the wake model evaluation per RP here
-        rps_coords = RP_data[2]
-        print(rps_coords)
+        
+  
+
+        # determining veered wind directon at RP height
+        alpha[i] = par.alpha_gradient * rps_coords[i,3]  #linear veer profile
+        gamma[i] = par.beta + alpha[i]
+
+        #eq 3    
+        a_star[i] = (1.0  + sqrt(1.0 - par.CT * cosd(gamma[i])^2)    ) / (2.0 * sqrt(1.0 - par.CT * cosd(gamma[i])^2))
+        xi_0_hat[i] = par.R * sqrt(a_star[i])
+        
+        
+        #rotate RP coordinates to veered frame
+        coords_veered[i,1] = rps_coords[i,1] * cosd(alpha[i]) + rps_coords[i,2] * sind(alpha[i])
+        coords_veered[i,2] = rps_coords[i,1] * -sind(alpha[i]) + rps_coords[i,2] * cosd(alpha[i])
+        coords_veered[i,3] = rps_coords[i,3] 
+        
+        t_hat[i] = -1.44 * 2
+        #need a height dependent wind speed profile
+        
+        
+        
+        
+        
+        #rest of logic here...
 
 
     end
+    print(size(xi_0_hat))
 
 end
 
@@ -131,7 +167,7 @@ end
 
 
 
-
+ 
 
 
 function runFUNCTIONS!(buf::bufferstruct, par::Params, RP_data)

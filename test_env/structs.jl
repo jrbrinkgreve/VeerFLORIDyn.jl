@@ -1,4 +1,5 @@
 #structs for memory buffers
+using Debugger
 
 mutable struct bufferstruct
     nRP::Int
@@ -44,5 +45,15 @@ end
 struct Params
     #parameters for computations
     alpha_gradient::Float64
+    R::Float64
+    D::Float64
+    z_hub::Float64
+    u_hub::Float64
+    u_star::Float64
+    k::Float64
+    CT::Float64
+    angle_tolerance::Float64
+    lambda::Float64
+    beta::Float64
 end
 
