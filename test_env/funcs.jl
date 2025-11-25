@@ -16,6 +16,7 @@ function bufferstruct(nRP::Int)::bufferstruct
         Vector{Float64}(undef, nRP),   #xi_0_hat
         Matrix{Float64}(undef, 3, 3),  #rotmtx
         Matrix{Float64}(undef, nRP, 3),#coords_veered
+        Vector{Float64}(undef, nRP),   #shear_modifier
         Vector{Float64}(undef, nRP),   #t_hat
         Vector{Float64}(undef, nRP),   #sgn_t_hat
         Vector{Float64}(undef, nRP),   #abs_t_hat
@@ -39,7 +40,7 @@ function bufferstruct(nRP::Int)::bufferstruct
         Vector{Float64}(undef, nRP),   #c
         Vector{Float64}(undef, nRP),   #du
         Vector{Float64}(undef, nRP),   #u
-        #output arrays here
+        
             
 
     )
@@ -49,7 +50,7 @@ end
 
 
 function Params()::Params
-    return Params(
+    return Params(      
         #example parameter values from Mohammadi et al.
         0.05,    #alpha_gradient
         63.0,   #R                          #import these later from turbine data
@@ -88,6 +89,7 @@ function setup_computation_buffers!(buf::bufferstruct, nRP::Int)
     xi_0_hat = view(buf.xi_0_hat, :)
     rotmtx = view(buf.rotmtx, :, :)
     coords_veered = view(buf.coords_veered, :, :)
+    shear_modifier = view(buf.shear_modifier, :)
     t_hat = view(buf.t_hat, :)
     sgn_t_hat = view(buf.sgn_t_hat, :)
     abs_t_hat = view(buf.abs_t_hat, :)
@@ -112,7 +114,7 @@ function setup_computation_buffers!(buf::bufferstruct, nRP::Int)
     du = view(buf.du, :)
     u = view(buf.u, :)
     return (nRP, rps_coords, alpha, beta, gamma, a_star, xi_0_hat, rotmtx,
-            coords_veered, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c,
+            coords_veered, shear_modifier, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c,
             theta, xi_0, xi_hat, chi, a, c1, c2, c3, c4, c5, c6, c7,
             xi, sigma, sigma_hat_squared, c, du, u)
 end
@@ -120,14 +122,22 @@ end
 
 
 
+
+function windshearModifierPlaceholder(z::Float64)::Float64
+    #placeholder for wind shear profile
+    return  (1.0 + 0.001 * z) #0.1% per meter increase
+end
+
+
+
 function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
     nRP, rps_coords, alpha, beta, gamma, a_star, xi_0_hat, rotmtx,
-    coords_veered, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c,
+    coords_veered, shear_modifier, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c,
     theta, xi_0, xi_hat, chi, a, c1, c2, c3, c4, c5, c6, c7,
     xi, sigma, sigma_hat_squared, c, du, u = views #use pointers to buffer
     rps_coords = RP_data[2]
     for i in 1:nRP
-        #do the wake model evaluation per RP here
+        #do the wake model evaluation per RP here:
         
   
 
@@ -145,7 +155,12 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
         coords_veered[i,2] = rps_coords[i,1] * -sind(alpha[i]) + rps_coords[i,2] * cosd(alpha[i])
         coords_veered[i,3] = rps_coords[i,3] 
         
-        t_hat[i] = -1.44 * 2
+        #compute shear modifier at RP height
+        shear_modifier[i] = windshearModifierPlaceholder(coords_veered[i,3])
+        
+        
+        #compute t_hat
+        t_hat[i] = -1.44 * shear_modifier[i] * par.u_hub / par.u_star * par.R / xi_0_hat[i] * par.CT * cosd(gamma[i])^2 
         #need a height dependent wind speed profile
         
         

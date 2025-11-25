@@ -3,7 +3,7 @@ include("funcs.jl")
 
 using Debugger
 
-nRP = 100
+nRP = 50_000
 buf = bufferstruct(nRP) 
 par = Params()
 RP_data = generate_RP_data(nRP, par)

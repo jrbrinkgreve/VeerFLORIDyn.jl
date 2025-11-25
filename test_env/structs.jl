@@ -13,6 +13,7 @@ mutable struct bufferstruct
     xi_0_hat::Vector{Float64}
     rotmtx::Matrix{Float64}
     coords_veered::Matrix{Float64}
+    shear_modifier::Vector{Float64}
     t_hat::Vector{Float64}
     sgn_t_hat::Vector{Float64}
     abs_t_hat::Vector{Float64}
