@@ -123,7 +123,7 @@ end
 
 
 
-function windshearModifierPlaceholder(z::Float64)::Float64
+@inline function windshearModifierPlaceholder(z::Float64)::Float64
     #placeholder for wind shear profile
     return  (1.0 + 0.001 * z) #0.1% per meter increase
 end
@@ -171,7 +171,7 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
 
 
     end
-    print(size(xi_0_hat))
+    #print(size(xi_0_hat))
 
 end
 
