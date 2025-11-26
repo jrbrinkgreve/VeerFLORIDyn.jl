@@ -1,6 +1,6 @@
 #funcs.jl
 using Debugger
-
+using ControlPlots
 
 #constructor for bufferstruct
 function bufferstruct(nRP::Int)::bufferstruct
@@ -136,23 +136,29 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
     theta, xi_0, xi_hat, chi, a, c1, c2, c3, c4, c5, c6, c7,
     xi, sigma, sigma_hat_squared, c, du, u = views #use pointers to buffer
     rps_coords = RP_data[2]
-    for i in 1:nRP
+    sqrt3 = sqrt(3.0)
+    pisq = pi^2
+    pim1 = pi - 1.0
+
+
+    
+    @inbounds for i in 1:nRP                                   #add @inbounds later!
         #do the wake model evaluation per RP here:
         
   
 
         # determining veered wind directon at RP height
-        alpha[i] = par.alpha_gradient * rps_coords[i,3]  #linear veer profile
-        gamma[i] = par.beta + alpha[i]
+        alpha[i] = deg2rad(par.alpha_gradient * rps_coords[i,3])  #linear veer profile
+        gamma[i] = deg2rad(par.beta) + alpha[i]
 
         #eq 3    
-        a_star[i] = (1.0  + sqrt(1.0 - par.CT * cosd(gamma[i])^2)    ) / (2.0 * sqrt(1.0 - par.CT * cosd(gamma[i])^2))
+        a_star[i] = (1.0  + sqrt(1.0 - par.CT * cos(gamma[i])^2)    ) / (2.0 * sqrt(1.0 - par.CT * cos(gamma[i])^2))
         xi_0_hat[i] = par.R * sqrt(a_star[i])
         
         
         #rotate RP coordinates to veered frame
-        coords_veered[i,1] = rps_coords[i,1] * cosd(alpha[i]) + rps_coords[i,2] * sind(alpha[i])
-        coords_veered[i,2] = rps_coords[i,1] * -sind(alpha[i]) + rps_coords[i,2] * cosd(alpha[i])
+        coords_veered[i,1] = rps_coords[i,1] * cos(alpha[i]) + rps_coords[i,2] * sin(alpha[i])
+        coords_veered[i,2] = rps_coords[i,1] * -sin(alpha[i]) + rps_coords[i,2] * cos(alpha[i])
         coords_veered[i,3] = rps_coords[i,3] 
         
         #compute shear modifier at RP height
@@ -160,18 +166,67 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
         
         
         #compute t_hat
-        t_hat[i] = -1.44 * shear_modifier[i] * par.u_hub / par.u_star * par.R / xi_0_hat[i] * par.CT * cosd(gamma[i])^2 
-        #need a height dependent wind speed profile
-        
-        
-        
-        
-        
-        #rest of logic here...
+        t_hat[i] = (
+            -1.44 * shear_modifier[i] * par.u_hub / par.u_star * par.R / xi_0_hat[i] * par.CT  
+            * cos(gamma[i])^2 * sin(gamma[i])  *
+            (1.0 - exp( -0.35   * par.u_star / (shear_modifier[i] * par.u_hub) *  coords_veered[i,1] / par.R )   )
+        )
+        y_hat_c[i] = ((pim1 *  abs(t_hat[i])^3 + 2.0sqrt3 * pisq * t_hat[i]^2 + 48.0pim1^2 * abs(t_hat[i] ) ) / 
+                (2.0*pi*pim1 * t_hat[i]^2 + 4.0sqrt3 * pisq * abs(t_hat[i]) + 96.0 * pim1^2) * sign(t_hat[i]) - 
+                (2.0 / pi) * t_hat[i]  / (((coords_veered[i,3] + 2.0*par.z_hub  ) / xi_0_hat[i])^2 - 1.0)  
+
+        )     #note: ... + 2.0*par.z_hub  ) ... as z is defined from nacelle height, not ground level
+       
+        y_c[i] = y_hat_c[i] * xi_0_hat[i]
+
+        theta[i] = atan( coords_veered[i,3] / (coords_veered[i,2] - y_c[i])  )
 
 
+
+        #eq 9: initial wake shape
+        xi_0[i] = par.R*sqrt(a_star[i]) * abs(cos(theta[i])) / sqrt(1.0 - (sin(gamma[i]) * sin(theta[i]) )^2   )
+        
+        if gamma[i] < par.angle_tolerance
+            chi[i] = 0.0
+            xi_hat[i] = 1.0
+        else
+            # Assume t_hat, gamma, par are defined and indexed
+
+            chi[i] = 1.0 / (par.lambda * sin(gamma[i]))
+            a[i] = 1.263 * cos(0.33 * chi[i])
+            
+            c1[i] = 0.5 * tanh(t_hat[i]^2 / (4.0*a[i]))
+            c2[i] = (-1.0/3.0) * tanh(t_hat[i]^3 / (8.0*a[i]))
+            c3[i] = -0.25 * tanh(t_hat[i]^3 / (8.0*a[i]))
+            c4[i] = (-1.0/6.0) * tanh(t_hat[i]^4 / (16.0*a[i]))
+            c5[i] = (5.0/16.0) * tanh(t_hat[i]^4 / (16.0*a[i]))
+            c6[i] = (-5.0/48.0) * tanh(t_hat[i]^4 / (16.0*a[i]))
+            c7[i] = (7.0/48.0) * tanh(t_hat[i]^4 / (16.0*a[i]))
+
+            xi_hat[i] = 1.0 - a[i]*(
+                c1[i] * cos(2.0theta[i]) +
+                c2[i] * chi[i] * sin(2.0theta[i]) +
+                c3[i] * cos(3.0theta[i]) +
+                c4[i] * chi[i]^2 * cos(2.0theta[i]) +
+                c5[i] * chi[i] * sin(3.0theta[i]) +
+                c6[i] * cos(2.0theta[i]) +
+                c7[i] * cos(4.0theta[i])
+            )
+        end
+        xi[i] = xi_0[i] * xi_hat[i]
+        sigma_hat_squared[i] = (
+            (par.k * par.u_star / (par.u_hub * shear_modifier[i])  * coords_veered[i,1] + 0.4 * xi_0_hat[i]) *
+            (par.k * par.u_star / (par.u_hub * shear_modifier[i])  * coords_veered[i,1] + 0.4 * xi_0_hat[i] * cos(gamma[i]))
+        ) # == (kx + 0.4 xi_0_hat     )(         ) 
+        sigma[i] = (par.k * par.u_star / (par.u_hub * shear_modifier[i])  * coords_veered[i,1] + 0.4 * xi[i])
+
+
+        #eq 15: velocity deficit
+        c[i] = 1.0 - sqrt(max(0.001,      1.0 - par.R^2 * par.CT * cos(gamma[i])^3 / (2.0 * sigma_hat_squared[i]) ))
+        du[i] = c[i] * exp(- ((coords_veered[i,2] - y_c[i])^2 + coords_veered[i,3] )^2  / (2.0sigma[i]^2)   )
+        u[i] = par.u_hub * shear_modifier[i] - du[i]
     end
-    #print(size(xi_0_hat))
+    #print(size(du))
 
 end
 
@@ -189,6 +244,7 @@ function runFUNCTIONS!(buf::bufferstruct, par::Params, RP_data)
     nRP = RP_data[1]
     views = setup_computation_buffers!(buf, nRP)
     compute_wake_effects!(buf, par, views, RP_data)
+    plot
 end
 
 
