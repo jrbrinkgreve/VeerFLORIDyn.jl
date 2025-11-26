@@ -63,7 +63,7 @@ function Params()::Params
         0.66,    #CT
         1e-10,   #angle_tolerance for chi computation
         8.0,     #lambda, TSR
-        15.0,     #beta, yaw angle in degrees
+        0.0,     #beta, yaw angle in degrees
     )
 end
 
@@ -259,12 +259,11 @@ function plot_velocity(buf::bufferstruct, par::Params)
     y = buf.rps_coords[:, 2]
     z = buf.u
 
-    scatter(x, y, z;
+    scatter(x, y;
             xlabel = "x (m)",
             ylabel = "y (m)",
-            zlabel = "Velocity (m/s)",
             title = "Wake Velocity Field",
-            markersize = 5,
+            markersize = 1,
             marker_z = z,
             color = :viridis,
             colorbar = true,
@@ -272,12 +271,13 @@ function plot_velocity(buf::bufferstruct, par::Params)
 end
 
 
+#probably some logic wrong as plotting shows wake not wide enough
+
 
 function runFUNCTIONS!(buf::bufferstruct, par::Params, RP_data)
     nRP = RP_data[1]
     views = setup_computation_buffers!(buf, nRP)
     compute_wake_effects!(buf, par, views, RP_data)
-    
 end
 
 
