@@ -1,6 +1,7 @@
 #funcs.jl
 using Debugger
-using ControlPlots
+using Plots
+
 
 #constructor for bufferstruct
 function bufferstruct(nRP::Int)::bufferstruct
@@ -72,7 +73,10 @@ function generate_RP_data(nRP::Int, par::Params)
     RP_coords = zeros(nRP, 3);   
     RP_coords[:,1] = 10.0* par.D * rand(nRP,1)           #example: random coordinates for rps_coords, tall matrix with 3 cols [x1, y1, z1]
     RP_coords[:,2] = 6.0 * par.D * (rand(nRP,1) .- 0.5)  # y deviation                                                        [x2, y2, z2] etc
-    RP_coords[:,3] = 1.0 * par.D * (rand(nRP,1) .- 0.5)  # z deviation  
+    #RP_coords[:,3] = 0.0 #1.0 * par.D * (rand(nRP,1) .- 0.5)  # z deviation  
+    
+
+    
     return nRP, RP_coords      
 end 
 
@@ -135,17 +139,19 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
     coords_veered, shear_modifier, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c,
     theta, xi_0, xi_hat, chi, a, c1, c2, c3, c4, c5, c6, c7,
     xi, sigma, sigma_hat_squared, c, du, u = views #use pointers to buffer
-    rps_coords = RP_data[2]
+
+    rps_coords .= RP_data[2]
+
+   
+
     sqrt3 = sqrt(3.0)
     pisq = pi^2
     pim1 = pi - 1.0
 
 
     
-    @inbounds for i in 1:nRP                                   #add @inbounds later!
+    @inbounds for i in 1:nRP                #inbounds for performance                 
         #do the wake model evaluation per RP here:
-        
-  
 
         # determining veered wind directon at RP height
         alpha[i] = deg2rad(par.alpha_gradient * rps_coords[i,3])  #linear veer profile
@@ -213,6 +219,9 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
                 c7[i] * cos(4.0theta[i])
             )
         end
+        
+        
+        
         xi[i] = xi_0[i] * xi_hat[i]
         sigma_hat_squared[i] = (
             (par.k * par.u_star / (par.u_hub * shear_modifier[i])  * coords_veered[i,1] + 0.4 * xi_0_hat[i]) *
@@ -232,19 +241,43 @@ end
 
 
 
+function plot_rotor_points(buf::bufferstruct, par::Params)
+    x = buf.rps_coords[:, 1]
+    y = buf.rps_coords[:, 2]
+
+    scatter(x, y; scatter = true,
+         xlabel = "x (m)",
+         ylabel = "y (m)",
+         title = "Rotor Points",
+         legend = false)
+end
 
 
 
+function plot_velocity(buf::bufferstruct, par::Params)
+    x = buf.rps_coords[:, 1]
+    y = buf.rps_coords[:, 2]
+    z = buf.u
 
+    scatter(x, y, z;
+            xlabel = "x (m)",
+            ylabel = "y (m)",
+            zlabel = "Velocity (m/s)",
+            title = "Wake Velocity Field",
+            markersize = 5,
+            marker_z = z,
+            color = :viridis,
+            colorbar = true,
+            legend = false)
+end
 
- 
 
 
 function runFUNCTIONS!(buf::bufferstruct, par::Params, RP_data)
     nRP = RP_data[1]
     views = setup_computation_buffers!(buf, nRP)
     compute_wake_effects!(buf, par, views, RP_data)
-    plot
+    
 end
 
 

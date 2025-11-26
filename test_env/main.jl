@@ -7,10 +7,5 @@ nRP = 50_000
 buf = bufferstruct(nRP) 
 par = Params()
 RP_data = generate_RP_data(nRP, par)
-
-
- 
 runFUNCTIONS!(buf, par, RP_data)
-
-
-
+plot_velocity(buf, par)
