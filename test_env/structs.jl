@@ -37,6 +37,7 @@ mutable struct bufferstruct
     c::Vector{Float64}
     du::Vector{Float64}
     u::Vector{Float64}
+    tmp::Vector{Float64}
  
    
 end

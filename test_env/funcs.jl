@@ -41,6 +41,7 @@ function bufferstruct(nRP::Int)::bufferstruct
         Vector{Float64}(undef, nRP),   #c
         Vector{Float64}(undef, nRP),   #du
         Vector{Float64}(undef, nRP),   #u
+        Vector{Float64}(undef, nRP)    #tmp
         
             
 
@@ -117,10 +118,12 @@ function setup_computation_buffers!(buf::bufferstruct, nRP::Int)
     c = view(buf.c, :)
     du = view(buf.du, :)
     u = view(buf.u, :)
+    tmp = view(buf.tmp, :)
+
     return (nRP, rps_coords, alpha, beta, gamma, a_star, xi_0_hat, rotmtx,
             coords_veered, shear_modifier, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c,
             theta, xi_0, xi_hat, chi, a, c1, c2, c3, c4, c5, c6, c7,
-            xi, sigma, sigma_hat_squared, c, du, u)
+            xi, sigma, sigma_hat_squared, c, du, u, tmp)
 end
 
 
@@ -138,7 +141,7 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
     nRP, rps_coords, alpha, beta, gamma, a_star, xi_0_hat, rotmtx,
     coords_veered, shear_modifier, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c,
     theta, xi_0, xi_hat, chi, a, c1, c2, c3, c4, c5, c6, c7,
-    xi, sigma, sigma_hat_squared, c, du, u = views #use pointers to buffer
+    xi, sigma, sigma_hat_squared, c, du, u, tmp = views #use pointers to buffer
 
     rps_coords .= RP_data[2]
 
@@ -185,8 +188,12 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
        
         y_c[i] = y_hat_c[i] * xi_0_hat[i]
 
-        theta[i] = atan( coords_veered[i,3] / (coords_veered[i,2] - y_c[i])  )
-
+        tmp[i] = (coords_veered[i,2] - y_c[i])
+        if abs(coords_veered[i,3]) < 1e-10
+             theta[i] = 0.0
+        else
+            theta[i] = atan( coords_veered[i,3] / tmp[i]  )
+        end
 
 
         #eq 9: initial wake shape
@@ -232,10 +239,10 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
 
         #eq 15: velocity deficit
         c[i] = 1.0 - sqrt(max(0.001,      1.0 - par.R^2 * par.CT * cos(gamma[i])^3 / (2.0 * sigma_hat_squared[i]) ))
-        du[i] = c[i] * exp(- ((coords_veered[i,2] - y_c[i])^2 + coords_veered[i,3] )^2  / (2.0sigma[i]^2)   )
+        du[i] = c[i] * exp(- ((coords_veered[i,2] - y_c[i])^2 + (coords_veered[i,3])^2 )  / (2.0*sigma[i]^2)   ) * (par.u_hub * shear_modifier[i])
         u[i] = par.u_hub * shear_modifier[i] - du[i]
     end
-    #print(size(du))
+    #print(sigma)
 
 end
 
