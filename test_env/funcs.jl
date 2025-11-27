@@ -1,6 +1,7 @@
 #funcs.jl
 using Debugger
-using Plots
+
+
 
 
 #constructor for bufferstruct
@@ -64,7 +65,7 @@ function Params()::Params
         0.66,    #CT
         1e-10,   #angle_tolerance for chi computation
         8.0,     #lambda, TSR
-        0.0,     #beta, yaw angle in degrees
+        25.0,     #beta, yaw angle in degrees
     )
 end
 
@@ -73,8 +74,9 @@ end
 function generate_RP_data(nRP::Int, par::Params)
     RP_coords = zeros(nRP, 3);   
     RP_coords[:,1] = 10.0* par.D * rand(nRP,1)           #example: random coordinates for rps_coords, tall matrix with 3 cols [x1, y1, z1]
-    RP_coords[:,2] = 6.0 * par.D * (rand(nRP,1) .- 0.5)  # y deviation                                                        [x2, y2, z2] etc
-    #RP_coords[:,3] = 0.0 #1.0 * par.D * (rand(nRP,1) .- 0.5)  # z deviation  
+    RP_coords[:,2] = 3.0 * par.D * (rand(nRP,1) .- 0.5)  # y deviation                                                        [x2, y2, z2] etc
+    #RP_coords[:,3] = 1.0 * par.D * (rand(nRP,1) .- 0.5)  # z deviation  
+    RP_coords[:,3] .= 0.5 * par.R # * (rand(nRP,1) .- 0.5)  # z deviation  
     
 
     
@@ -188,11 +190,11 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
        
         y_c[i] = y_hat_c[i] * xi_0_hat[i]
 
-        tmp[i] = (coords_veered[i,2] - y_c[i])
+        #tmp[i] = (coords_veered[i,2] - y_c[i])
         if abs(coords_veered[i,3]) < 1e-10
              theta[i] = 0.0
         else
-            theta[i] = atan( coords_veered[i,3] / tmp[i]  )
+            theta[i] = atan( coords_veered[i,3] / (coords_veered[i,2] - y_c[i]) )
         end
 
 
@@ -247,43 +249,11 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
 end
 
 
-
-function plot_rotor_points(buf::bufferstruct, par::Params)
-    x = buf.rps_coords[:, 1]
-    y = buf.rps_coords[:, 2]
-
-    scatter(x, y; scatter = true,
-         xlabel = "x (m)",
-         ylabel = "y (m)",
-         title = "Rotor Points",
-         legend = false)
-end
-
-
-
-function plot_velocity(buf::bufferstruct, par::Params)
-    x = buf.rps_coords[:, 1]
-    y = buf.rps_coords[:, 2]
-    z = buf.u
-
-    scatter(x, y;
-            xlabel = "x (m)",
-            ylabel = "y (m)",
-            title = "Wake Velocity Field",
-            markersize = 1,
-            marker_z = z,
-            color = :viridis,
-            colorbar = true,
-            legend = false)
-end
-
-
 #probably some logic wrong as plotting shows wake not wide enough
 
 
 function runFUNCTIONS!(buf::bufferstruct, par::Params, RP_data)
-    nRP = RP_data[1]
-    views = setup_computation_buffers!(buf, nRP)
+    views = setup_computation_buffers!(buf, RP_data[1])
     compute_wake_effects!(buf, par, views, RP_data)
 end
 
