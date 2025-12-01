@@ -44,7 +44,7 @@ end
 
 
 
-struct Params
+mutable struct Params
     #parameters for computations
     alpha_gradient::Float64
     R::Float64

@@ -55,7 +55,7 @@ end
 function Params()::Params
     return Params(      
         #example parameter values from Mohammadi et al.
-        0.05,    #alpha_gradient
+        0.0,    #alpha_gradient
         63.0,   #R                          #import these later from turbine data
         126.0,  #D
         90.0,  #z_hub
@@ -65,24 +65,9 @@ function Params()::Params
         0.66,    #CT
         1e-10,   #angle_tolerance for chi computation
         8.0,     #lambda, TSR
-        25.0,     #beta, yaw angle in degrees
+        0.0,     #beta, yaw angle in degrees
     )
 end
-
-
-#custom RP data generator for testing
-function generate_RP_data(nRP::Int, par::Params)
-    RP_coords = zeros(nRP, 3);   
-    RP_coords[:,1] = 10.0* par.D * rand(nRP,1)           #example: random coordinates for rps_coords, tall matrix with 3 cols [x1, y1, z1]
-    RP_coords[:,2] = 3.0 * par.D * (rand(nRP,1) .- 0.5)  # y deviation                                                        [x2, y2, z2] etc
-    #RP_coords[:,3] = 1.0 * par.D * (rand(nRP,1) .- 0.5)  # z deviation  
-    RP_coords[:,3] .= 0.5 * par.R # * (rand(nRP,1) .- 0.5)  # z deviation  
-    
-
-    
-    return nRP, RP_coords      
-end 
-
 
 
 
@@ -132,9 +117,9 @@ end
 
 
 
-@inline function windshearModifierPlaceholder(z::Float64)::Float64
+@inline function windshearModifierPlaceholder(z::Float64, z_hub::Float64)::Float64
     #placeholder for wind shear profile
-    return  (1.0 + 0.001 * z) #0.1% per meter increase
+    return  1.0#(1.0 + 0.001 * (z - z_hub)) #0.1% per meter increase, centered at hub height
 end
 
 
@@ -159,7 +144,7 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
         #do the wake model evaluation per RP here:
 
         # determining veered wind directon at RP height
-        alpha[i] = deg2rad(par.alpha_gradient * rps_coords[i,3])  #linear veer profile
+        alpha[i] = deg2rad(par.alpha_gradient * (rps_coords[i,3] - par.z_hub))  #linear veer profile
         gamma[i] = deg2rad(par.beta) + alpha[i]
 
         #eq 3    
@@ -173,7 +158,7 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
         coords_veered[i,3] = rps_coords[i,3] 
         
         #compute shear modifier at RP height
-        shear_modifier[i] = windshearModifierPlaceholder(coords_veered[i,3])
+        shear_modifier[i] = windshearModifierPlaceholder(coords_veered[i,3], par.z_hub)
         
         
         #compute t_hat
@@ -184,22 +169,22 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
         )
         y_hat_c[i] = ((pim1 *  abs(t_hat[i])^3 + 2.0sqrt3 * pisq * t_hat[i]^2 + 48.0pim1^2 * abs(t_hat[i] ) ) / 
                 (2.0*pi*pim1 * t_hat[i]^2 + 4.0sqrt3 * pisq * abs(t_hat[i]) + 96.0 * pim1^2) * sign(t_hat[i]) - 
-                (2.0 / pi) * t_hat[i]  / (((coords_veered[i,3] + 2.0*par.z_hub  ) / xi_0_hat[i])^2 - 1.0)  
+                (2.0 / pi) * t_hat[i]  / (((coords_veered[i,3] + par.z_hub  ) / xi_0_hat[i])^2 - 1.0)  
 
         )     #note: ... + 2.0*par.z_hub  ) ... as z is defined from nacelle height, not ground level
        
         y_c[i] = y_hat_c[i] * xi_0_hat[i]
 
         #tmp[i] = (coords_veered[i,2] - y_c[i])
-        if abs(coords_veered[i,3]) < 1e-10
+        if abs(coords_veered[i,3] - par.z_hub) < 1e-10
              theta[i] = 0.0
         else
-            theta[i] = atan( coords_veered[i,3] / (coords_veered[i,2] - y_c[i]) )
+            theta[i] = atan( (coords_veered[i,3] - par.z_hub) / (coords_veered[i,2] - y_c[i]) )
         end
 
 
         #eq 9: initial wake shape
-        xi_0[i] = par.R*sqrt(a_star[i]) * abs(cos(theta[i])) / sqrt(1.0 - (sin(gamma[i]) * sin(theta[i]) )^2   )
+        xi_0[i] = par.R*sqrt(a_star[i]) * abs(cos(gamma[i])) / sqrt(1.0 - (sin(gamma[i]) * sin(theta[i]) )^2   )
         
         if gamma[i] < par.angle_tolerance
             chi[i] = 0.0
@@ -241,7 +226,7 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
 
         #eq 15: velocity deficit
         c[i] = 1.0 - sqrt(max(0.001,      1.0 - par.R^2 * par.CT * cos(gamma[i])^3 / (2.0 * sigma_hat_squared[i]) ))
-        du[i] = c[i] * exp(- ((coords_veered[i,2] - y_c[i])^2 + (coords_veered[i,3])^2 )  / (2.0*sigma[i]^2)   ) * (par.u_hub * shear_modifier[i])
+        du[i] = c[i] * exp(- ((coords_veered[i,2] - y_c[i])^2 + (coords_veered[i,3] - par.z_hub)^2 )  / (2.0*sigma[i]^2)   ) * (par.u_hub * shear_modifier[i])
         u[i] = par.u_hub * shear_modifier[i] - du[i]
     end
     #print(sigma)
@@ -249,7 +234,6 @@ function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
 end
 
 
-#probably some logic wrong as plotting shows wake not wide enough
 
 
 function runFUNCTIONS!(buf::bufferstruct, par::Params, RP_data)
