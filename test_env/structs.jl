@@ -38,6 +38,12 @@ mutable struct bufferstruct
     du::Vector{Float64}
     u::Vector{Float64}
     tmp::Vector{Float64}
+    #output buffers:
+    T_red_arr::Vector{Float64}
+    T_aTI_arr::Vector{Float64}
+    T_Ueff::Vector{Float64}    # length 1 when set
+    T_weight::Vector{Float64}
+
  
    
 end

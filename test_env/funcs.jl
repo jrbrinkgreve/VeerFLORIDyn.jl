@@ -42,9 +42,12 @@ function bufferstruct(nRP::Int)::bufferstruct
         Vector{Float64}(undef, nRP),   #c
         Vector{Float64}(undef, nRP),   #du
         Vector{Float64}(undef, nRP),   #u
-        Vector{Float64}(undef, nRP)    #tmp
-        
-            
+        Vector{Float64}(undef, nRP),    #tmp
+        #output buffers:
+        Float64[],   #T_red_arr::Vector{Float64}
+        Float64[],   #T_aTI_arr::Vector{Float64}
+        Float64[],   #T_Ueff::Vector{Float64}    # length 1 when set
+        Float64[]    #T_weight::Vector{Float64}
 
     )
 end
@@ -106,11 +109,16 @@ function setup_computation_buffers!(buf::bufferstruct, nRP::Int)
     du = view(buf.du, :)
     u = view(buf.u, :)
     tmp = view(buf.tmp, :)
+    T_red_arr = view(buf.T_red_arr, :)
+    T_aTI_arr = view(buf.T_aTI_arr, :)
+    T_Ueff = view(buf.T_Ueff, :)
+    T_weight = view(buf.T_weight, :)
 
     return (nRP, rps_coords, alpha, beta, gamma, a_star, xi_0_hat, rotmtx,
             coords_veered, shear_modifier, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c,
             theta, xi_0, xi_hat, chi, a, c1, c2, c3, c4, c5, c6, c7,
-            xi, sigma, sigma_hat_squared, c, du, u, tmp)
+            xi, sigma, sigma_hat_squared, c, du, u, tmp,
+            T_red_arr, T_aTI_arr, T_Ueff, T_weight) #use pointers to buffer
 end
 
 
@@ -125,17 +133,14 @@ end
 
 
 function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
-    nRP, rps_coords, alpha, beta, gamma, a_star, xi_0_hat, rotmtx,
+    (nRP, rps_coords, alpha, beta, gamma, a_star, xi_0_hat, rotmtx,
     coords_veered, shear_modifier, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c,
     theta, xi_0, xi_hat, chi, a, c1, c2, c3, c4, c5, c6, c7,
-    xi, sigma, sigma_hat_squared, c, du, u, tmp = views #use pointers to buffer
+    xi, sigma, sigma_hat_squared, c, du, u, tmp, T_red_arr, T_aTI_arr, T_Ueff, T_weight) = views #use pointers to buffer
 
     rps_coords .= RP_data[2]
-
-   
-
     sqrt3 = sqrt(3.0)
-    pisq = pi^2
+    pisq = pi^2    
     pim1 = pi - 1.0
 
 
