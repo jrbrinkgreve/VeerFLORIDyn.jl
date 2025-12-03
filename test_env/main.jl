@@ -7,7 +7,7 @@ include("data_generators.jl")
 
 nRPx = 51
 nRPy = 51
-buf = bufferstruct(nRPx * nRPy) 
+buf = VEERWAKEMODELBuffers(nRPx * nRPy) 
 par = Params()
 
 

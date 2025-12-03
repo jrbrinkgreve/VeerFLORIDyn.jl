@@ -4,9 +4,9 @@ using Debugger
 
 
 
-#constructor for bufferstruct
-function bufferstruct(nRP::Int)::bufferstruct
-    return bufferstruct(
+#constructor for buffers
+function VEERWAKEMODELBuffers(nRP::Int)::VEERWAKEMODELBuffers
+    return VEERWAKEMODELBuffers(
         #input vars
         nRP,
         Matrix{Float64}(undef, nRP, 3),  #rps_coords    
@@ -74,8 +74,8 @@ end
 
 
 
-#gets views: essentially pointers to the preallocated arrays in the bufferstruct    
-function setup_computation_buffers!(buf::bufferstruct, nRP::Int)
+#gets views: essentially pointers to the preallocated arrays in the buffers    
+function setup_computation_buffers!(buf::VEERWAKEMODELBuffers, nRP::Int)
     rps_coords = view(buf.rps_coords, :,:)
     alpha = view(buf.alpha, :)
     beta = view(buf.beta, :)
@@ -132,7 +132,7 @@ end
 
 
 
-function compute_wake_effects!(buf::bufferstruct, par::Params, views, RP_data)
+function compute_wake_effects!(buf::VEERWAKEMODELBuffers, par::Params, views, RP_data)
     (nRP, rps_coords, alpha, beta, gamma, a_star, xi_0_hat, rotmtx,
     coords_veered, shear_modifier, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c,
     theta, xi_0, xi_hat, chi, a, c1, c2, c3, c4, c5, c6, c7,
@@ -241,7 +241,7 @@ end
 
 
 
-function runFUNCTIONS!(buf::bufferstruct, par::Params, RP_data)
+function runFUNCTIONS!(buf::VEERWAKEMODELBuffers, par::Params, RP_data)
     views = setup_computation_buffers!(buf, RP_data[1])
     compute_wake_effects!(buf, par, views, RP_data)
 end

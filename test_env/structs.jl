@@ -1,7 +1,7 @@
 #structs for memory buffers
 using Debugger
 
-mutable struct bufferstruct
+mutable struct VEERWAKEMODELBuffers
     nRP::Int
     rps_coords::Matrix{Float64}  # 3 x nRP
 

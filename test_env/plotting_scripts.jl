@@ -2,7 +2,7 @@ using Plots
 using ScatteredInterpolation
 
 
-function plot_rotor_points(buf::bufferstruct, par::Params)
+function plot_rotor_points(buf::VEERWAKEMODELBuffers, par::Params)
     x = buf.rps_coords[:, 1]
     y = buf.rps_coords[:, 2]
 
@@ -15,7 +15,7 @@ end
 
 
 
-function plot_velocity(buf::bufferstruct, par::Params)
+function plot_velocity(buf::VEERWAKEMODELBuffers, par::Params)
     x = buf.rps_coords[:, 1]
     y = buf.rps_coords[:, 2]
     z = buf.u
@@ -31,7 +31,7 @@ function plot_velocity(buf::bufferstruct, par::Params)
             legend = false)
 end
 
-function plot_velocity_advanced(buf::bufferstruct, par::Params)
+function plot_velocity_advanced(buf::VEERWAKEMODELBuffers, par::Params)
     # 1. Prepare Data and Normalization
     D = 2 * par.R
     
@@ -92,7 +92,7 @@ end
 
 
 
-function plot_velocity_advanced_YZ(buf::bufferstruct, par::Params  )
+function plot_velocity_advanced_YZ(buf::VEERWAKEMODELBuffers, par::Params  )
 
 
     #data
@@ -136,7 +136,7 @@ end
 
 using Plots, Printf
 
-function plot_contour_YZ(buf::bufferstruct, par::Params)
+function plot_contour_YZ(buf::VEERWAKEMODELBuffers, par::Params)
     # 1. Define Diameter for Normalization
     D = par.R * 2.0
 
@@ -186,7 +186,7 @@ function plot_contour_YZ(buf::bufferstruct, par::Params)
 end
 
 
-function plotting_surf(buf::bufferstruct, par::Params  )
+function plotting_surf(buf::VEERWAKEMODELBuffers, par::Params  )
     x = buf.rps_coords[:, 1]
     y = buf.rps_coords[:, 2]
     z = buf.u
