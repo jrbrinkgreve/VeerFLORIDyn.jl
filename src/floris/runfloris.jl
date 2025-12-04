@@ -55,6 +55,44 @@ function FLORISBuffers(n_pts::Int)
         Vector{Float64}(undef, n_pts),     # exp_y
         Vector{Float64}(undef, n_pts),     # exp_z
         Vector{Bool}(undef, n_pts),        # not_core
+
+        n_pts,
+        Matrix{Float64}(undef, n_pts, 3),  #rps_coords    
+        #for getVeerVars! outputs
+        Vector{Float64}(undef, n_pts),   #alpha, height dependent veer angle
+        Vector{Float64}(undef, n_pts),   #beta
+        Vector{Float64}(undef, n_pts),   #gamma
+        Vector{Float64}(undef, n_pts),   #a_star
+        Vector{Float64}(undef, n_pts),   #xi_0_hat
+        Matrix{Float64}(undef, 3, 3),  #rotmtx
+        Matrix{Float64}(undef, n_pts, 3),#coords_veered
+        Vector{Float64}(undef, n_pts),   #shear_modifier
+        Vector{Float64}(undef, n_pts),   #u_in_z
+        Vector{Float64}(undef, n_pts),   #t_hat
+        Vector{Float64}(undef, n_pts),   #sgn_t_hat
+        Vector{Float64}(undef, n_pts),   #abs_t_hat
+        Vector{Float64}(undef, n_pts),   #y_hat_c
+        Vector{Float64}(undef, n_pts),   #y_c
+        Vector{Float64}(undef, n_pts),   #theta
+        Vector{Float64}(undef, n_pts),   #xi_0
+        Vector{Float64}(undef, n_pts),   #xi_hat
+        Vector{Float64}(undef, n_pts),   #chi
+        Vector{Float64}(undef, n_pts),   #a
+        Vector{Float64}(undef, n_pts),   #c1
+        Vector{Float64}(undef, n_pts),   #c2
+        Vector{Float64}(undef, n_pts),   #c3
+        Vector{Float64}(undef, n_pts),   #c4
+        Vector{Float64}(undef, n_pts),   #c5
+        Vector{Float64}(undef, n_pts),   #c6
+        Vector{Float64}(undef, n_pts),   #c7
+        Vector{Float64}(undef, n_pts),   #xi
+        Vector{Float64}(undef, n_pts),   #sigma
+        Vector{Float64}(undef, n_pts),   #sigma_hat_squared
+        Vector{Float64}(undef, n_pts),   #c
+        Vector{Float64}(undef, n_pts),   #du
+        Vector{Float64}(undef, n_pts),   #u
+        Vector{Float64}(undef, n_pts),    #tmp
+
         Float64[],                         # T_red_arr (size set per call)
         Float64[],                         # T_aTI_arr (size set per call)
         Float64[],                         # T_Ueff (size 0 or 1)
