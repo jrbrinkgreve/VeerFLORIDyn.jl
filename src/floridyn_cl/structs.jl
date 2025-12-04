@@ -336,7 +336,6 @@ Unified buffer struct containing all arrays needed by interpolateOPs! and setUpT
 - `plot_WF_buffer::Matrix{Float64}`: Wind field plotting buffer
 - `plot_OP_buffer::Matrix{Float64}`: Observation point plotting buffer
 - `floris_buffers`: Pre-allocated FLORIS computation buffers for wind wake calculations
-- `veerwakemodel_buffers`: Pre-allocated VEERWAKEMODEL computation buffers for veered wind wake calculations
 """
 struct UnifiedBuffers
     dist_buffer::Vector{Float64}
@@ -349,8 +348,7 @@ struct UnifiedBuffers
     dists_buffer::Vector{Float64}
     plot_WF_buffer::Matrix{Float64}
     plot_OP_buffer::Matrix{Float64}
-    floris_buffers::FLORISBuffers                 # Will be FLORISBuffers when FLORIS is available
-    veerwakemodel_buffers::VEERWAKEMODELBuffers  #new VEERWAKEMODELBuffers
+    floris_buffers::FLORISBuffers  # Will be FLORISBuffers when FLORIS is available
     gp::WindFarm                   # Optional WindFarm buffer for grid-point computations
 end
 

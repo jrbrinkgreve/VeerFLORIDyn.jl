@@ -14,9 +14,10 @@ import Base: show
 using Interpolations, LinearAlgebra, Random, YAML, StructMapping, Parameters, CSV, DataFrames, DelimitedFiles, JLD2
 using Statistics, StaticArrays, Pkg, DistributedNext, Dates
 using REPL.TerminalMenus
+using SparseArrays
 
 export MSR, toMSR, VelReduction, AddedTurbulence, EffWind
-export setup, Settings, Vis, getTurbineData, initSimulation, TurbineArray, TurbineData, turbine_group
+export setup, Settings, Vis, getTurbineData, initSimulation, TurbineArray, TurbineData, turbine_group, create_n_groups
 export set_yaw!, set_induction!
 
 export Direction_Constant, Direction_Constant_wErrorCov, Direction_EnKF_InterpTurbine, Direction_Interpolation
@@ -63,9 +64,6 @@ export UnifiedBuffers, create_unified_buffers
 export get_default_project
 export select_project
 export get_default_msr, set_default_msr, select_measurement
-
-#added veer stuff:
-export runVEERWAKEMODEL!
 
 """
     MSR `VelReduction` `AddedTurbulence` `EffWind`
@@ -179,7 +177,6 @@ include("correction/structs_dir.jl")
 include("correction/structs_vel.jl")
 include("correction/structs_turb.jl")
 include("floris/structs_floris.jl")  # Include FLORISBuffers before structs.jl needs it
-include("veer/structs_veerwakemodel.jl") #added VEERWAKEMODELBuffers
 include("floridyn_cl/structs.jl")
 include("controller/structs_controller.jl")
 
@@ -376,20 +373,9 @@ function create_unified_buffers(wf::WindFarm, rotor_points=50)
     # Create FLORIS buffers with specified number of rotor points
     n_floris_points = max(rotor_points, 1)
     
-    
     # Try to create FLORISBuffers if available, otherwise use nothing
     floris_buffers = try
     FLORISBuffers(n_floris_points)
-    catch
-        nothing
-    end
-
-    # Create veer buffers with specified number of rotor points
-    n_veerwakemodel_points = max(rotor_points, 1)
-    
-    # Try to create VEERWAKEMODELBuffers if available, otherwise use nothing
-    veerwakemodel_buffers = try
-    VEERWAKEMODELBuffers(n_veerwakemodel_points)
     catch
         nothing
     end
@@ -426,7 +412,6 @@ function create_unified_buffers(wf::WindFarm, rotor_points=50)
         plot_WF_buffer,
         plot_OP_buffer,
         floris_buffers,
-        veerwakemodel_buffers,
         GP
     )
 end
@@ -447,11 +432,6 @@ include("floris/discretization.jl")
 include("floris/gaussian.jl")
 include("floris/runfloris.jl")
 include("floridyn_cl/floridyn_cl.jl")
-
-#veer
-#include("veer/discretization_veerwakemodel.jl") #does not need to be included, same as floris one
-include("veer/runVEERWAKEMODEL.jl")
-include("veer/veercorefunctions.jl")
 
 include("correction/direction.jl")
 include("correction/velocity.jl")
