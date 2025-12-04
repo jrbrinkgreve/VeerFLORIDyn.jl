@@ -153,6 +153,9 @@ floris:
   TIexp: 3 # TI crosswind distribution is modelled as a factor of sigma_y and sigma_z.
            # This is in contrast to previous literature which assumed a fixed box area and the
            # turbines therein as source of higher TI.
+  #veer params:           
+  veer_gradient: 0.05
+  angle_tol: 1e-10
 
 floridyn:
   n_op: 200

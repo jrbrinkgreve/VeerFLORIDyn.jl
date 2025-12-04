@@ -336,6 +336,8 @@ A mutable struct representing the settings for the FLORIDyn simulation.
     airDen::Float64
     TIexp::Int
     rotor_points::Union{Nothing, Int64} = nothing
+    veer_gradient::Float64
+    angle_tol::Float64
 end
 
 """

@@ -43,10 +43,11 @@ mutable struct FLORISBuffers
     exp_z::Vector{Float64}
     not_core::Vector{Bool}
 
+
+
+    
     nRP::Int
     rps_coords::Matrix{Float64}  # 3 x nRP
-
-    #for getVeerVars! outputs
     alpha::Vector{Float64}
     beta::Vector{Float64}
     gamma::Vector{Float64}
@@ -80,17 +81,6 @@ mutable struct FLORISBuffers
     du::Vector{Float64}
     u::Vector{Float64}
     tmp::Vector{Float64}
-
-
-
-
-    #adding veer related buffers
-
-
-
-
-
-
 
     # Result arrays (persisted in buffers to avoid fresh allocations)
     T_red_arr::Vector{Float64}
