@@ -15,7 +15,7 @@ The main prepareSimulation function handles:
 - Wind farm setup with turbine positioning and states initialization
 - Control system configuration (yaw control)
 - Simulation parameter configuration =#
-
+using Infiltrator
 """
     readCovMatrix(cov_data, nT, name)
 
@@ -154,7 +154,6 @@ function prepareSimulation(set::Settings, wind::Wind, con::Con, floridyn::FloriD
 
     nT = size(turbProp.pos, 1)
     input_vel = wind.input_vel
-
     if input_vel == "I_and_I"
         wind.vel.WSE = WSEParameters(nT, sim.path_to_data, sim.TimeStep)
         wind.vel.TimePrev = sim.start_time

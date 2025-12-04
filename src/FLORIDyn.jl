@@ -8,6 +8,7 @@ module FLORIDyn
 
 using PrecompileTools: @setup_workload, @compile_workload
 using LaTeXStrings
+using Infiltrator
 import DocStringExtensions, LoggingExtras
 import Base: show
 
@@ -674,6 +675,9 @@ function copy_files(relpath, files)
     files
 end
 
+
+#commented out this precompile block to allow for infiltrate to work in here
+"""
 @setup_workload begin
     # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
     # precompile file and potentially make loading faster.
@@ -692,4 +696,7 @@ end
     end
 
 end
+
+
+"""
 end

@@ -1,6 +1,6 @@
 # Copyright (c) 2025 Marcus Becker, Uwe Fechner
 # SPDX-License-Identifier: BSD-3-Clause
-
+using Infiltrator
 #=
 This file contains configuration structures and setup functions for wind farm simulations.
 
@@ -336,6 +336,7 @@ A mutable struct representing the settings for the FLORIDyn simulation.
     airDen::Float64
     TIexp::Int
     rotor_points::Union{Nothing, Int64} = nothing
+    #veer below
     veer_gradient::Float64
     angle_tol::Float64
 end
@@ -983,6 +984,7 @@ println("Simulation duration: ", sim.end_time - sim.start_time, " seconds")
 - [`TurbineArray`](@ref): Turbine array layout and properties
 """
 function setup(filename)
+
     data = YAML.load_file(filename)
     wind_data = data["wind"]
     wind = convertdict(Wind, wind_data)
