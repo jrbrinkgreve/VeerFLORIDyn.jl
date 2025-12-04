@@ -42,6 +42,19 @@ mutable struct FLORISBuffers
     exp_y::Vector{Float64}
     exp_z::Vector{Float64}
     not_core::Vector{Bool}
+
+
+
+
+
+    #adding veer related buffers
+    
+
+
+
+
+
+
     # Result arrays (persisted in buffers to avoid fresh allocations)
     T_red_arr::Vector{Float64}
     T_aTI_arr::Vector{Float64}
