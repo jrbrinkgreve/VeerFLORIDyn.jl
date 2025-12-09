@@ -376,7 +376,6 @@ function prepareSimulation(set::Settings, wind::Wind, con::Con, floridyn::FloriD
 
     # # ========== Init State ===========
     wf.States_OP, wf.States_T, wf.States_WF = init_states(set, wf, wind, turbProp.init_States, floris, sim)
-
     # # ========== Simulation Setup ==========
     sim.n_sim_steps = length(sim.start_time:sim.time_step:sim.end_time)
     floris.rotor_points = sim.rotor_points

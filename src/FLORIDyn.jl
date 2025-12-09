@@ -431,6 +431,7 @@ include("windfield/windfield_velocity.jl")
 
 include("floris/discretization.jl")
 include("floris/gaussian.jl")
+include("floris/veer.jl")
 include("floris/runfloris.jl")
 include("floridyn_cl/floridyn_cl.jl")
 

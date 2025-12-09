@@ -16,7 +16,7 @@ Functions defined in this file:
 The runFLORIS! function serves as the main entry point and coordinates execution through the
 specialized helper functions. The FLORISBuffers struct is defined in structs_floris.jl.
 =#
-
+using Infiltrator
 """
     FLORISBuffers(n_pts::Int) -> FLORISBuffers
 
@@ -130,7 +130,7 @@ function prepare_rotor_points!(buffers::FLORISBuffers, location_t, states_t, d_r
         RPl = SA[0.0 0.0 0.0]
         RPw = SA[1.0]
     end
-    
+
     # Yaw rotation for last turbine
     tmp_yaw = deg2rad(states_t[end, 2])
     R = SA[cos(tmp_yaw)  sin(tmp_yaw)  0.0;
@@ -201,6 +201,7 @@ This function is **private** and intended for internal use only.
 function handle_single_turbine!(buffers::FLORISBuffers, RPl, RPw, location_t, set::Settings, 
                                windshear, d_rotor)
     # Avoid allocating RPl[:,3] and the broadcasted division by using a buffer
+
     nRP_local = size(RPl, 1)
     if length(buffers.tmp_RPs_r) < nRP_local
         error("FLORISBuffers.tmp_RPs_r too small: expected at least $(nRP_local) elements, got $(length(buffers.tmp_RPs_r)).\n" *
@@ -220,6 +221,7 @@ function handle_single_turbine!(buffers::FLORISBuffers, RPl, RPw, location_t, se
     end
     z_view = @view buffers.tmp_RPs_r[1:nRP_local]
     redShear = getWindShearT(set.shear_mode, windshear, z_view)
+    
     # Avoid allocating a view for RPw in the dot product
     acc = 0.0
     @inbounds for i in 1:nRP_local
@@ -295,9 +297,48 @@ function setup_computation_buffers!(buffers::FLORISBuffers, nRP::Int, nT::Int)
     exp_y = view(buffers.exp_y, 1:nRP)
     exp_z = view(buffers.exp_z, 1:nRP)
     not_core = view(buffers.not_core, 1:nRP)
+    
+    
+    #=
+    #veer:
+    rps_coords = view(buf.rps_coords, :,:)
+    alpha = view(buf.alpha, :)
+    beta = view(buf.beta, :)
+    gamma = view(buf.gamma, :)
+    a_star = view(buf.a_star, :)
+    xi_0_hat = view(buf.xi_0_hat, :)
+    rotmtx = view(buf.rotmtx, :, :)
+    coords_veered = view(buf.coords_veered, :, :)
+    shear_modifier = view(buf.shear_modifier, :)
+    u_in_z = view(buf.u_in_z, :)
+    t_hat = view(buf.t_hat, :)
+    sgn_t_hat = view(buf.sgn_t_hat, :)
+    abs_t_hat = view(buf.abs_t_hat, :)
+    y_hat_c = view(buf.y_hat_c, :)
+    y_c = view(buf.y_c, :)
+    theta = view(buf.theta, :)
+    xi_0 = view(buf.xi_0, :)
+    xi_hat = view(buf.xi_hat, :)
+    chi = view(buf.chi, :)
+    a = view(buf.a, :)
+    c1 = view(buf.c1, :)
+    c2 = view(buf.c2, :)
+    c3 = view(buf.c3, :)
+    c4 = view(buf.c4, :)
+    c5 = view(buf.c5, :)
+    c6 = view(buf.c6, :)
+    c7 = view(buf.c7, :)
+    xi = view(buf.xi, :)
+    sigma = view(buf.sigma, :)
+    sigma_hat_squared = view(buf.sigma_hat_squared, :)
+    c = view(buf.c, :)
+    du = view(buf.du, :)
+    u = view(buf.u, :)
+    tmp = view(buf.tmp, :)
+    =#
 
     return (tmp_RPs, sig_y, sig_z, x_0, delta, pc_y, pc_z, cw_y, cw_z, phi_cw, r_cw, 
-            core, nw, fw, tmp_RPs_r, gaussAbs, gaussWght, exp_y, exp_z, not_core)
+            core, nw, fw, tmp_RPs_r, gaussAbs, gaussWght, exp_y, exp_z, not_core )
 end
 
 """
@@ -333,6 +374,11 @@ calculations, and Gaussian wake modeling.
 # Note
 This function is **private** and intended for internal use only.
 """
+
+
+
+
+
 function compute_wake_effects!(buffers::FLORISBuffers, views, iT::Int, RPl, RPw, location_t, 
                               states_wf, states_t, d_rotor, floris::Floris, nRP::Int)
     tmp_RPs, sig_y, sig_z, x_0, delta, pc_y, pc_z, cw_y, cw_z, phi_cw, r_cw, 
@@ -344,7 +390,7 @@ function compute_wake_effects!(buffers::FLORISBuffers, views, iT::Int, RPl, RPw,
     # Use pre-allocated array instead of creating new one
     for i in 1:nRP
         for j in 1:3
-            tmp_RPs[i, j] = RPl[i, j] - location_t[iT, j]
+            tmp_RPs[i, j] = RPl[i, j] - location_t[iT, j]   #relative location wrt to this turbine
         end
     end
     
@@ -364,6 +410,8 @@ function compute_wake_effects!(buffers::FLORISBuffers, views, iT::Int, RPl, RPw,
     if tmp_RPs[1, 1] <= 10
         return nothing
     end
+
+
 
     a_val = states_t[iT, 1]
     yaw_deg = states_t[iT, 2]
@@ -659,6 +707,6 @@ function runFLORIS!(buffers::FLORISBuffers, set::Settings, location_t, states_wf
     # Final wind shear computation
     compute_final_wind_shear!(buffers, RPl, RPw, location_t, set, windshear, 
                               views[15], states_wf)  # views[15] is tmp_RPs_r
-    
+
     nothing
 end

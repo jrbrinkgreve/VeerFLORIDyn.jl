@@ -505,7 +505,7 @@ function setUpTmpWFAndRun!(ub::UnifiedBuffers, wf::WindFarm, set::Settings, flor
         wf.red_arr = ones(wf.nT, wf.nT)
     end
 
-     for iT in 1:wf.nT # for1 loop
+    for iT in 1:wf.nT # for1 loop
         # Reuse iTWFState_buffer instead of allocating (avoid row slice)
         @inbounds begin
             src_row = wf.StartI[iT]

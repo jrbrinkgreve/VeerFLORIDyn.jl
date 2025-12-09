@@ -19,7 +19,7 @@ wake expansion calculations, deflection modeling, and state management. The main
 runFLORIS! function and its helpers have been moved to runfloris.jl for better
 code organization.
 =#
-
+using Infiltrator
 """
     calcCt(a::Number, _) -> Float64
     calcCt(a::AbstractVector, _) -> AbstractVector
@@ -241,7 +241,9 @@ function centerline!(deflection::AbstractMatrix,
 
     # Compute deflection into provided matrix
     getVars!(sig_y, sig_z, x_0, deflection, pc_y, pc_z, RPs, Ct, yaw, TI, TI0, floris, d_rotor)
+    #return deflection
     return deflection
+    
 end
 
 """
@@ -423,7 +425,8 @@ function init_states(set::Settings, wf::WindFarm, wind::Wind, init_turb, floris:
         # Crosswind position (in-place)
         centerline!(@view(states_op[rangeOPs, 5:6]), states_op[rangeOPs, :], states_t[rangeOPs, :],
                           states_wf[rangeOPs, :], floris, wf.D[iT])
-
+        
+        
         # Convert wind dir in fitting radians
         phi_w = angSOWFA2world.(states_wf[rangeOPs, 2])
 

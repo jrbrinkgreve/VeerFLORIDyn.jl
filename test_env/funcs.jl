@@ -181,8 +181,7 @@ function compute_wake_effects!(buf::VEERWAKEMODELBuffers, par::Params, views, RP
         )     #note: ... + 2.0*par.z_hub  ) ... as z is defined from nacelle height, not ground level
        
         y_c[i] = y_hat_c[i] * xi_0_hat[i]
-
-        #tmp[i] = (coords_veered[i,2] - y_c[i])
+        
         if abs(coords_veered[i,3] - par.z_hub) < 1e-10
              theta[i] = 0.0
         else
