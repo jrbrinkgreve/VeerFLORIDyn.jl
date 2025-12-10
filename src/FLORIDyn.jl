@@ -431,7 +431,7 @@ include("windfield/windfield_velocity.jl")
 
 include("floris/discretization.jl")
 include("floris/gaussian.jl")
-include("floris/veer.jl")
+include("floris/veer.jl") #added veer file
 include("floris/runfloris.jl")
 include("floridyn_cl/floridyn_cl.jl")
 
@@ -571,6 +571,7 @@ function copy_bin()
     cp(joinpath(src_path, "run_julia"), joinpath(PATH, "run_julia"), force=true)
     chmod(joinpath(PATH, "run_julia"), 0o774)
 end
+
 
 """
     install_examples(add_packages=true)
