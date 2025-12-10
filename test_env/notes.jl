@@ -2,17 +2,10 @@
 notes for veer implementations
 
 
-#call structure for setUpTmpWFAndRun!
+
 
 ...
-
-for all turbines
-    if single turbine
-    - runFLORIS()
-    
-
-
-    runFLORIS:
+runFLORIS funcs:
         - prepare_rotor_points!
         - handle_single_turbine!
         - setup_computation_buffers!

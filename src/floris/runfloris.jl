@@ -702,7 +702,6 @@ function runFLORIS!(buffers::FLORISBuffers, set::Settings, location_t, states_wf
 
     #@infiltrate
     
-    
     #use exfiltrate to get variable in right structure for testbench
     views = setup_computation_buffers!(buffers, nRP, nT)
 

@@ -35,4 +35,5 @@ procedure for getting safehouse:
 - remove @infiltrate again
 - include("src/floris/testscripts.jl")    (this script)
 
+now ready for runFLORIS dev
 =#
