@@ -198,6 +198,7 @@ A mutable struct that holds configuration parameters for the FLORIDyn simulation
 - `control_mode`
 - `parallel::Bool`:  Run plotting in a separate process.
 - `threading::Bool`: Enable threading for parallel computation within a single process
+- `veer_enabled::Bool`: enable veer effects in the simulation
 """
 mutable struct Settings
     vel_mode::VelModel
@@ -212,6 +213,7 @@ mutable struct Settings
     induction_mode
     parallel::Bool
     threading::Bool
+    veer_enabled::Bool
 end
 
 """

@@ -20,6 +20,7 @@ runFLORIS! function and its helpers have been moved to runfloris.jl for better
 code organization.
 =#
 using Infiltrator
+using LinearAlgebra
 """
     calcCt(a::Number, _) -> Float64
     calcCt(a::AbstractVector, _) -> AbstractVector
@@ -437,7 +438,7 @@ function init_states(set::Settings, wf::WindFarm, wind::Wind, init_turb, floris:
                                   cos.(phi_w) .* states_op[rangeOPs, 5] .+ wf.posBase[iT, 2] .+ wf.posNac[iT, 2]
         states_op[rangeOPs, 3] .= states_op[rangeOPs, 6] .+ wf.posBase[iT, 3] .+ wf.posNac[iT, 3]
     end
-
+  
     return states_op, states_t, states_wf
 end
 

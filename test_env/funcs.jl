@@ -153,7 +153,7 @@ function compute_wake_effects!(buf::VEERWAKEMODELBuffers, par::Params, views, RP
         # determining veered wind directon at RP height
         alpha[i] = deg2rad(par.alpha_gradient * (rps_coords[i,3] - par.z_hub))  #linear veer profile
         gamma[i] = deg2rad(par.beta) + alpha[i]
-
+        @infiltrate
         #eq 3    
         a_star[i] = (1.0  + sqrt(1.0 - par.CT * cos(gamma[i])^2)    ) / (2.0 * sqrt(1.0 - par.CT * cos(gamma[i])^2))
         xi_0_hat[i] = par.R * sqrt(a_star[i])
@@ -247,6 +247,9 @@ function runFUNCTIONS!(buf::VEERWAKEMODELBuffers, par::Params, RP_data)
     views = setup_computation_buffers!(buf, RP_data[1])
     compute_wake_effects!(buf, par, views, RP_data)
 end
+
+
+
 
 
 

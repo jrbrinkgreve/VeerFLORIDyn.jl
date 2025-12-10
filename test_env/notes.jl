@@ -20,6 +20,17 @@ for all turbines
         - compute_final_wind_shear!
     
 
+        
+
+
+
+Essentially, for runFLORIS replacements: 
+- prepare_rotor_points!: no change
+- handle_single_turbine!: no change
+- setup_computation_buffers!: add veer related buffers to Floris struct and Params struct
+- compute_wake_effects!: add veer related computations, probably in new file veer
+- compute_final_wind_shear!: no change
+
 
 
 

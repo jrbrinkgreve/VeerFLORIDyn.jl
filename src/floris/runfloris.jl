@@ -16,7 +16,7 @@ Functions defined in this file:
 The runFLORIS! function serves as the main entry point and coordinates execution through the
 specialized helper functions. The FLORISBuffers struct is defined in structs_floris.jl.
 =#
-using Infiltrator
+
 """
     FLORISBuffers(n_pts::Int) -> FLORISBuffers
 
@@ -429,6 +429,8 @@ function compute_wake_effects!(buffers::FLORISBuffers, views, iT::Int, RPl, RPw,
 
     # Compute wake variables using in-place API with preallocated buffers
     getVars!(sig_y, sig_z, x_0, delta, pc_y, pc_z, tmp_RPs, Ct, yaw, TI, TI0, floris, d_rotor[iT])
+    
+    
     C_T = Ct
 
     # Use pre-allocated arrays
@@ -687,26 +689,29 @@ function runFLORIS!(buffers::FLORISBuffers, set::Settings, location_t, states_wf
                    windshear::Union{Matrix, WindShear})
     # Prepare rotor points (RPl, RPw)
     RPl, RPw = prepare_rotor_points!(buffers, location_t, states_t, d_rotor, floris)
-    
+
     # Handle single turbine case
     if length(d_rotor) == 1
+
         return handle_single_turbine!(buffers, RPl, RPw, location_t, set, windshear, d_rotor)
     end
-    
+    @infiltrate #use exfiltrate to get variable in right structure for testbench
     # Setup computation buffers
     nRP = size(RPl, 1)
     nT = length(d_rotor)
     views = setup_computation_buffers!(buffers, nRP, nT)
+
     
     # Main wake computation loop
     for iT in 1:(nT - 1)
         compute_wake_effects!(buffers, views, iT, RPl, RPw, location_t, states_wf, 
                              states_t, d_rotor, floris, nRP)
     end
-    
+
     # Final wind shear computation
     compute_final_wind_shear!(buffers, RPl, RPw, location_t, set, windshear, 
                               views[15], states_wf)  # views[15] is tmp_RPs_r
+
 
     nothing
 end
