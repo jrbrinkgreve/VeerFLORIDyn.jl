@@ -11,7 +11,7 @@ function runFLORIS!(buffers::FLORISBuffers, set::Settings, location_t, states_wf
 using LinearAlgebra
 using StaticArrays
 using Infiltrator
-using FLORIDyn
+
 
 
 
@@ -21,12 +21,13 @@ include("structs_floris.jl")
 include("runfloris.jl")
 include("gaussian.jl")
 
+buffers = FLORISBuffers(48)
 
 
 
 
 
-runFLORIS!(safehouse.buffers::FLORISBuffers, safehouse.set, safehouse.location_t, safehouse.states_wf, safehouse.states_t, safehouse.d_rotor, safehouse.floris, safehouse.windshear)   
+runFLORIS!(buffers, safehouse.set, safehouse.location_t, safehouse.states_wf, safehouse.states_t, safehouse.d_rotor, safehouse.floris, safehouse.windshear)   
 
 
 
