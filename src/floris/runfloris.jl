@@ -698,9 +698,12 @@ function runFLORIS!(buffers::FLORISBuffers, set::Settings, location_t, states_wf
     # Setup computation buffers
     nRP = size(RPl, 1)
     nT = length(d_rotor)
+    
 
-
-    #@infiltrate #use exfiltrate to get variable in right structure for testbench
+    #@infiltrate
+    
+    
+    #use exfiltrate to get variable in right structure for testbench
     views = setup_computation_buffers!(buffers, nRP, nT)
 
     
@@ -709,7 +712,6 @@ function runFLORIS!(buffers::FLORISBuffers, set::Settings, location_t, states_wf
         compute_wake_effects!(buffers, views, iT, RPl, RPw, location_t, states_wf, 
                              states_t, d_rotor, floris, nRP)
     end
-    print("hi")
     # Final wind shear computation
     compute_final_wind_shear!(buffers, RPl, RPw, location_t, set, windshear, 
                               views[15], states_wf)  # views[15] is tmp_RPs_r

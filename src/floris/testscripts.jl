@@ -21,13 +21,18 @@ include("structs_floris.jl")
 include("runfloris.jl")
 include("gaussian.jl")
 
-buffers = FLORISBuffers(48)
-
-
-
+buffers = FLORISBuffers(safehouse.nRP)
 
 
 runFLORIS!(buffers, safehouse.set, safehouse.location_t, safehouse.states_wf, safehouse.states_t, safehouse.d_rotor, safehouse.floris, safehouse.windshear)   
 
+#=
+procedure for getting safehouse:
 
+- uncomment @infiltrate in runFLORIS!
+- include("examples/veer_main_mini.jl")
+- [inside REPL] @exfiltrate to get safehouse
+- remove @infiltrate again
+- include("src/floris/testscripts.jl")    (this script)
 
+=#
