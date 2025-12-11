@@ -535,8 +535,9 @@ function setUpTmpWFAndRun!(ub::UnifiedBuffers, wf::WindFarm, set::Settings, flor
                 wind.shear
             )
             # Buffers now hold a length-1 vector for the single-turbine reduction
-            T_red_scalar = ub.floris_buffers.T_red_arr[1]   
-            ub.M_buffer[iT, 1] = T_red_scalar
+
+            T_red_scalar = ub.floris_buffers.T_red_arr[1]      #NOTE if code crashes here floris_buffers
+            ub.M_buffer[iT, 1] = T_red_scalar               #probably not initialized
             ub.M_buffer[iT, 2] = 0.0
             ub.M_buffer[iT, 3] = T_red_scalar * wf.States_WF[wf.StartI[iT], 1]
             wf.red_arr[iT, iT] = T_red_scalar

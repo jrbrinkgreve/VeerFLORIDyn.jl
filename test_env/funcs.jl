@@ -134,7 +134,7 @@ end
 
 
 
-function compute_wake_effects!(buf::VEERWAKEMODELBuffers, par::Params, views, RP_data)
+function compute_wake_effects!(buf, par::Params, views, RP_data)
     (nRP, rps_coords, alpha, beta, gamma, a_star, xi_0_hat, rotmtx,
     coords_veered, shear_modifier, u_in_z, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c,
     theta, xi_0, xi_hat, chi, a, c1, c2, c3, c4, c5, c6, c7,

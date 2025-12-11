@@ -16,12 +16,54 @@ List of functions in this file:
 =#
 
 
+#----------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------
+
+
 
 
 function handle_single_turbine_veer!(buffers, RPl, RPw, location_t, set, windshear, d_rotor)
+    # Avoid allocating RPl[:,3] and the broadcasted division by using a buffer
 
+    nRP_local = size(RPl, 1)
+    if length(buffers.tmp_RPs_r) < nRP_local
+        error("FLORISBuffers.tmp_RPs_r too small: expected at least $(nRP_local) elements, got $(length(buffers.tmp_RPs_r)).\n" *
+              "Ensure create_unified_buffers(.., floris) used the same rotor discretization.")
+    end
+    if set.shear_mode isa Shear_PowerLaw
+        # Power law expects z normalized by hub height; clamp to > 0
+        @inbounds for i in 1:nRP_local
+            val = RPl[i, 3] / location_t[end, 3]
+            buffers.tmp_RPs_r[i] = val > eps() ? val : eps()
+        end
+    else
+        # Interpolation expects absolute height in meters
+        @inbounds for i in 1:nRP_local
+            buffers.tmp_RPs_r[i] = RPl[i, 3]
+        end
+    end
+    z_view = @view buffers.tmp_RPs_r[1:nRP_local]
+    redShear = getWindShearT(set.shear_mode, windshear, z_view)
+    # Avoid allocating a view for RPw in the dot product
+    acc = 0.0
+    @inbounds for i in 1:nRP_local
+        acc = muladd(RPw[i], redShear[i], acc)
+    end
+    T_red_scalar = acc
+    # Persist result into buffers as 1-length arrays (optional use by callers)
+    resize!(buffers.T_red_arr, 1); buffers.T_red_arr[1] = T_red_scalar
+    resize!(buffers.T_aTI_arr, 0)
+    resize!(buffers.T_Ueff, 0)
+    resize!(buffers.T_weight, 0)
+    return nothing
 
 end
+
+
+
+#----------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------
+
 
 
 
@@ -108,19 +150,178 @@ function setup_computation_buffers_veer!(buffers, nRP::Int, nT::Int)
 
     return (tmp_RPs, sig_y, sig_z, x_0, delta, pc_y, pc_z, cw_y, cw_z, phi_cw, r_cw, 
             core, nw, fw, tmp_RPs_r, gaussAbs, gaussWght, exp_y, exp_z, not_core, rps_coords,
-            alpha, beta, gamma, a_star, xi_0_hat, rotmtx, coords_veered, shear_modifier, u_in_z, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c, theta, xi_0, xi_hat, chi, a, c1, c2, c3, c4, c5, c6, c7, xi, sigma, sigma_hat_squared, c, du, u, tmp)
+            alpha, beta, gamma, a_star, xi_0_hat, rotmtx, coords_veered, shear_modifier, u_in_z,
+            t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c, theta, xi_0, xi_hat, chi, a, c1, c2, c3, 
+            c4, c5, c6, c7, xi, sigma, sigma_hat_squared, c, du, u, tmp)
 
 
 end
 
 
+#----------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------
 
 function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, states_wf, 
-                                states_t, d_rotor, floris, nRP)
+                                states_t, d_rotor, floris, nRP, set, windshear)
 
 
+
+    #get views:
+    tmp_RPs, sig_y, sig_z, x_0, delta, pc_y, pc_z, cw_y, cw_z, phi_cw, r_cw, 
+            core, nw, fw, tmp_RPs_r, gaussAbs, gaussWght, exp_y, exp_z, not_core, rps_coords,
+            alpha, beta, gamma, a_star, xi_0_hat, rotmtx, coords_veered, shear_modifier, u_in_z,
+            t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c, theta, xi_0, xi_hat, chi, a, c1, c2, c3, 
+            c4, c5, c6, c7, xi, sigma, sigma_hat_squared, c, du, u, tmp = views
+    
+
+
+    #get yaw angle
+    tmp_phi = size(states_wf,2) == 4 ? angSOWFA2world(states_wf[iT, 4]) :
+                                       angSOWFA2world(states_wf[iT, 2])
+
+
+
+
+    #construct relative RP locations: relevant for wake model evaluations
+    for i in 1:nRP
+        for j in 1:2   
+            tmp_RPs[i, j] = RPl[i, j] - location_t[iT, j]   #relative location wrt to this turbine
+        end         #tmp_RPs contains relative X,Y coordinates w.r.t nacelle of current turbine
+    end             #as wake model uses absolute heights, Z coord is NOT relative    
+
+    tmp_RPs[:, 3] = RPl[:, 3]   #absolute heights, no relative here
+
+  
+
+    
+    
+    
+    #For this veered wake model, we use absolute z coordinates, wake model by
+    #Mohammadi et al. uses this
+    #as ground effects are considered there, we need to know absolute heights
+    z_hub = location_t[iT, 3] #added for clarity
+    #precompute for yaw frame alignment 
+    cos_phi = cos(tmp_phi)    #precompute
+    sin_phi = sin(tmp_phi)
+    
+    # Apply rotation matrix manually to avoid allocation
+    #rotation matrix is for aligning with yaw 
+    for i in 1:nRP
+        x = tmp_RPs[i, 1]
+        y = tmp_RPs[i, 2]
+        z = tmp_RPs[i, 3]
+        tmp_RPs[i, 1] = cos_phi * x + sin_phi * y
+        tmp_RPs[i, 2] = -sin_phi * x + cos_phi * y
+        tmp_RPs[i, 3] = z
+    end
+
+    #prob a break on a failed sanity check
+    if tmp_RPs[1, 1] <= 10
+        print("something went wrong, veer.jl line 220")
+        return nothing
+    end
+
+
+    #load variability in readable names
+    a_val = states_t[iT, 1]
+    yaw_deg = states_t[iT, 2]
+    yaw = -deg2rad(yaw_deg)
+    TI = states_t[iT, 3]
+    Ct = calcCt(a_val, yaw_deg)
+    TI0 = states_wf[iT, 3]
+
+
+
+
+
+    # Compute mean_x now, before tmp_RPs is reused for other data
+    mean_x = 0.0
+    @inbounds for i in 1:nRP
+        mean_x += tmp_RPs[i, 1]
+    end
+    mean_x /= nRP
+
+   
+    
+    #get Mohammadi model parameters / velocity field writting inplace to u
+    getVars_veer!(  
+        tmp_RPs,
+        alpha, yaw, gamma, a_star, xi_0_hat, coords_veered, shear_modifier, u_in_z,
+        t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c, theta, xi_0, xi_hat, chi, a, c1, c2, c3, 
+        c4, c5, c6, c7, xi, sigma, sigma_hat_squared, c, du, u, tmp,
+        Ct, TI, TI0, floris,d_rotor[iT],  #get rotor diameter of current turbine
+        z_hub, set, windshear
+    )
 
 end
+
+
+
+
+
+#----------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------
+
+
+
+function getVars_veer!(rps_coords,
+            alpha, beta, gamma, a_star, xi_0_hat, coords_veered, shear_modifier, u_in_z,
+            t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c, theta, xi_0, xi_hat, chi, a, c1, c2, c3, 
+            c4, c5, c6, c7, xi, sigma, sigma_hat_squared, c, du, u, tmp,
+            CT, ti, ti0, floris::Floris, d_rotor, z_hub, set, windshear, )
+
+    # Parameters and constraints
+    sqrt3 = sqrt(3.0)
+    pisq = pi^2.0    
+    pim1 = pi - 1.0
+    nRP, _ = size(rps_coords)
+    R = d_rotor/2.0
+
+
+    @infiltrate
+
+    for i in 1:nRP                #use inbounds for performance
+        #do the wake model evaluation per RP here:
+        # determining veered wind directon at RP height
+        alpha[i] = deg2rad(floris.veer_gradient * (rps_coords[i,3] - z_hub))  #linear veer profile
+        gamma[i] = deg2rad(beta) + alpha[i]
+        
+        #eq 3    
+        a_star[i] = (1.0  + sqrt(1.0 - CT * cos(gamma[i])^2)    ) / (2.0 * sqrt(1.0 - CT * cos(gamma[i])^2))
+        
+        xi_0_hat[i] = R * sqrt(a_star[i])
+        
+        
+        #rotate RP coordinates to veered frame at each height
+        coords_veered[i,1] = rps_coords[i,1] * cos(alpha[i]) + rps_coords[i,2] * sin(alpha[i])
+        coords_veered[i,2] = rps_coords[i,1] * -sin(alpha[i]) + rps_coords[i,2] * cos(alpha[i])
+        coords_veered[i,3] = rps_coords[i,3] 
+
+        #compute shear modifier at RP height
+        shear_modifier[i] = getWindShearT(set.shear_mode, windshear, coords_veered[i,3])
+        print(shear_modifier[i])
+
+
+        #note: here theres a conceptual difference with the other FLORIS model: 
+
+        #Mohammadi calculates the u field without any combination,
+        #while FLORIS does this combined stuff in some way (missing comments so idk how)
+
+        #so basically have to find out how to structure code using the mohammadi model
+
+
+        
+        
+    end
+    
+
+end
+
+
+
+
+#----------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------
 
 
 
@@ -134,6 +335,15 @@ end
 
 
 
+
+
+
+
+
+
+
+#----------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------
 
 
 

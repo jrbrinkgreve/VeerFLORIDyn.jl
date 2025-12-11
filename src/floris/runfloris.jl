@@ -393,7 +393,8 @@ function compute_wake_effects!(buffers, views, iT::Int, RPl, RPw, location_t,
             tmp_RPs[i, j] = RPl[i, j] - location_t[iT, j]   #relative location wrt to this turbine
         end
     end
-    
+
+
     cos_phi = cos(tmp_phi)
     sin_phi = sin(tmp_phi)
     
@@ -709,11 +710,19 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
         # Setup computation buffers
         views = setup_computation_buffers_veer!(buffers, nRP, nT)
 
-
+        
         # Main wake computation loop
         for iT in 1:(nT - 1)
+            
             compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, states_wf, 
-                                states_t, d_rotor, floris, nRP)
+                                states_t, d_rotor, floris, nRP, set, windshear)
+
+
+                                #AAAAAA 
+                                #question here: so i need an inflow velocity for model,
+                                # how do i get this?
+                                #also windshear, afterwards or mid computation?
+
         end
         # Final wind shear computation
         compute_final_wind_shear_veer!(buffers, RPl, RPw, location_t, set, windshear, 
@@ -731,14 +740,16 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
         #print("regular processing, no veer!" )
         # Handle single turbine case
         if length(d_rotor) == 1
+            #@infiltrate
             return handle_single_turbine!(buffers, RPl, RPw, location_t, set, windshear, d_rotor)
         end
         
     
         @infiltrate
-        #here: exfiltrate all + FLORISBuffers
-        
         #use exfiltrate to get variable in right structure for testbench
+
+
+
         views = setup_computation_buffers!(buffers, nRP, nT)
 
         
