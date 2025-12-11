@@ -174,6 +174,7 @@ function compute_wake_effects!(buf, par::Params, views, RP_data)
             * cos(gamma[i])^2 * sin(gamma[i])  *
             (1.0 - exp( -0.35   * par.u_star / (u_in_z[i]) *  coords_veered[i,1] / par.R )   )
         )
+        
         y_hat_c[i] = ((pim1 *  abs(t_hat[i])^3 + 2.0sqrt3 * pisq * t_hat[i]^2 + 48.0pim1^2 * abs(t_hat[i] ) ) / 
                 (2.0*pi*pim1 * t_hat[i]^2 + 4.0sqrt3 * pisq * abs(t_hat[i]) + 96.0 * pim1^2) * sign(t_hat[i]) - 
                 (2.0 / pi) * t_hat[i]  / (((coords_veered[i,3] + par.z_hub  ) / xi_0_hat[i])^2 - 1.0)  

@@ -43,7 +43,11 @@ function handle_single_turbine_veer!(buffers, RPl, RPw, location_t, set, windshe
         end
     end
     z_view = @view buffers.tmp_RPs_r[1:nRP_local]
-    redShear = getWindShearT(set.shear_mode, windshear, z_view)
+    redShear = getWindShearT(set.shear_mode, windshear, z_view)  #normalized!
+    @infiltrate
+    
+    
+    
     # Avoid allocating a view for RPw in the dot product
     acc = 0.0
     @inbounds for i in 1:nRP_local
@@ -229,6 +233,7 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
     TI = states_t[iT, 3]
     Ct = calcCt(a_val, yaw_deg)
     TI0 = states_wf[iT, 3]
+    u_hub = states_wf[iT, 1]
 
 
 
@@ -249,9 +254,9 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
         alpha, yaw, gamma, a_star, xi_0_hat, coords_veered, shear_modifier, u_in_z,
         t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c, theta, xi_0, xi_hat, chi, a, c1, c2, c3, 
         c4, c5, c6, c7, xi, sigma, sigma_hat_squared, c, du, u, tmp,
-        Ct, TI, TI0, floris,d_rotor[iT],  #get rotor diameter of current turbine
-        z_hub, set, windshear
-    )
+        Ct, TI, TI0, floris, d_rotor[iT],  #get rotor diameter of turbine causing the wake
+        z_hub, set, windshear, u_hub[iT] )  #get hub velocity of turbine causing the wake
+    
 
 end
 
@@ -268,17 +273,18 @@ function getVars_veer!(rps_coords,
             alpha, beta, gamma, a_star, xi_0_hat, coords_veered, shear_modifier, u_in_z,
             t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c, theta, xi_0, xi_hat, chi, a, c1, c2, c3, 
             c4, c5, c6, c7, xi, sigma, sigma_hat_squared, c, du, u, tmp,
-            CT, ti, ti0, floris::Floris, d_rotor, z_hub, set, windshear, )
+            CT, ti, ti0, floris::Floris, D, z_hub, set, windshear, u_hub)
 
     # Parameters and constraints
     sqrt3 = sqrt(3.0)
     pisq = pi^2.0    
     pim1 = pi - 1.0
     nRP, _ = size(rps_coords)
-    R = d_rotor/2.0
+    R = D/2.0
+  
 
 
-    @infiltrate
+
 
     for i in 1:nRP                #use inbounds for performance
         #do the wake model evaluation per RP here:
@@ -298,8 +304,23 @@ function getVars_veer!(rps_coords,
         coords_veered[i,3] = rps_coords[i,3] 
 
         #compute shear modifier at RP height
-        shear_modifier[i] = getWindShearT(set.shear_mode, windshear, coords_veered[i,3])
-        print(shear_modifier[i])
+        shear_modifier[i] = getWindShearT(set.shear_mode, windshear, coords_veered[i,3]/z_hub)
+        u_in_z[i] = u_hub * shear_modifier[i]   #note: check whether this shear modifier is correct
+        
+
+        #AAAAA      CONTINUE DEVELOPMENT FROM HERE: ADD USTAR TO FLORIS PARAMS STRUCT
+
+        t_hat[i] = (
+            -1.44 * u_in_z[i]/ floris.u_star * par.R / xi_0_hat[i] * par.CT  
+            * cos(gamma[i])^2 * sin(gamma[i])  *
+            (1.0 - exp( -0.35   * par.u_star / (u_in_z[i]) *  coords_veered[i,1] / par.R )   )
+        )
+        
+        y_hat_c[i] = ((pim1 *  abs(t_hat[i])^3 + 2.0sqrt3 * pisq * t_hat[i]^2 + 48.0pim1^2 * abs(t_hat[i] ) ) / 
+                (2.0*pi*pim1 * t_hat[i]^2 + 4.0sqrt3 * pisq * abs(t_hat[i]) + 96.0 * pim1^2) * sign(t_hat[i]) - 
+                (2.0 / pi) * t_hat[i]  / (((coords_veered[i,3] + par.z_hub  ) / xi_0_hat[i])^2 - 1.0)  
+
+        )
 
 
         #note: here theres a conceptual difference with the other FLORIS model: 
@@ -313,7 +334,7 @@ function getVars_veer!(rps_coords,
         
         
     end
-    
+    @infiltrate
 
 end
 

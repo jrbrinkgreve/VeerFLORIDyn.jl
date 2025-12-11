@@ -210,7 +210,7 @@ function handle_single_turbine!(buffers, RPl, RPw, location_t, set::Settings,
     if set.shear_mode isa Shear_PowerLaw
         # Power law expects z normalized by hub height; clamp to > 0
         @inbounds for i in 1:nRP_local
-            val = RPl[i, 3] / location_t[end, 3]
+            val = RPl[i, 3] / location_t[end, 3]    #normalized height
             buffers.tmp_RPs_r[i] = val > eps() ? val : eps()
         end
     else
@@ -702,6 +702,7 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
 
         # Handle single turbine case
         if length(d_rotor) == 1
+    
             print("single turbine\n")
             return handle_single_turbine_veer!(buffers, RPl, RPw, location_t, set, windshear, d_rotor)
         end
@@ -712,8 +713,8 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
 
         
         # Main wake computation loop
+        #computes the wake effects on the last turbine in location_t due to turbine iT
         for iT in 1:(nT - 1)
-            
             compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, states_wf, 
                                 states_t, d_rotor, floris, nRP, set, windshear)
 
@@ -754,6 +755,7 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
 
         
         # Main wake computation loop
+        #computes the wake effects on the last turbine in location_t due to turbine iT
         for iT in 1:(nT - 1)
             compute_wake_effects!(buffers, views, iT, RPl, RPw, location_t, states_wf, 
                                 states_t, d_rotor, floris, nRP)
