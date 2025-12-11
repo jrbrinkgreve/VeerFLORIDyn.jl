@@ -123,7 +123,7 @@ in the buffers to avoid allocations.
 # Note
 This function is **private** and intended for internal use only.
 """
-function prepare_rotor_points!(buffers::FLORISBuffers, location_t, states_t, d_rotor, floris::Floris)
+function prepare_rotor_points!(buffers, location_t, states_t, d_rotor, floris::Floris)
     if d_rotor[end] > 0
         RPl, RPw = discretizeRotor(floris.rotor_points)
     else
@@ -198,7 +198,7 @@ the appropriate buffer arrays. It returns early to avoid the multi-turbine wake 
 # Note
 This function is **private** and intended for internal use only.
 """
-function handle_single_turbine!(buffers::FLORISBuffers, RPl, RPw, location_t, set::Settings, 
+function handle_single_turbine!(buffers, RPl, RPw, location_t, set::Settings, 
                                windshear, d_rotor)
     # Avoid allocating RPl[:,3] and the broadcasted division by using a buffer
 
@@ -256,7 +256,7 @@ the main computation loop.
 # Note
 This function is **private** and intended for internal use only.
 """
-function setup_computation_buffers!(buffers::FLORISBuffers, nRP::Int, nT::Int)
+function setup_computation_buffers!(buffers, nRP::Int, nT::Int)
     # Initialize outputs in buffers
     resize!(buffers.T_red_arr, nT); fill!(buffers.T_red_arr, 1.0)
     resize!(buffers.T_aTI_arr, max(nT - 1, 0))
@@ -379,7 +379,7 @@ This function is **private** and intended for internal use only.
 
 
 
-function compute_wake_effects!(buffers::FLORISBuffers, views, iT::Int, RPl, RPw, location_t, 
+function compute_wake_effects!(buffers, views, iT::Int, RPl, RPw, location_t, 
                               states_wf, states_t, d_rotor, floris::Floris, nRP::Int)
     tmp_RPs, sig_y, sig_z, x_0, delta, pc_y, pc_z, cw_y, cw_z, phi_cw, r_cw, 
     core, nw, fw, tmp_RPs_r, gaussAbs, gaussWght, exp_y, exp_z, not_core = views
@@ -565,7 +565,7 @@ the final effective wind speed by combining all wake effects and wind shear.
 # Note
 This function is **private** and intended for internal use only.
 """
-function compute_final_wind_shear!(buffers::FLORISBuffers, RPl, RPw, location_t, set::Settings, 
+function compute_final_wind_shear!(buffers, RPl, RPw, location_t, set::Settings, 
                                   windshear, tmp_RPs_r, states_wf)
     nRP = size(RPl, 1)
     
@@ -685,36 +685,73 @@ The function implements state-of-the-art wake modeling based on:
 - [`FLORISBuffers`](@ref): Buffer structure documentation
 - [`Floris`](@ref): FLORIS model parameters
 """
-function runFLORIS!(buffers::FLORISBuffers, set::Settings, location_t, states_wf, states_t, d_rotor, floris, 
+function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_rotor, floris, 
                    windshear::Union{Matrix, WindShear})
     # Prepare rotor points (RPl, RPw)
     RPl, RPw = prepare_rotor_points!(buffers, location_t, states_t, d_rotor, floris)
 
-    # Handle single turbine case
-    if length(d_rotor) == 1
-
-        return handle_single_turbine!(buffers, RPl, RPw, location_t, set, windshear, d_rotor)
-    end
-    # Setup computation buffers
     nRP = size(RPl, 1)
     nT = length(d_rotor)
-    
 
-    #@infiltrate
-    
-    #use exfiltrate to get variable in right structure for testbench
-    views = setup_computation_buffers!(buffers, nRP, nT)
+    if set.enable_veer == true
+        print("veer processing\n")
+        #veer processing code here
 
+
+
+        # Handle single turbine case
+        if length(d_rotor) == 1
+            print("single turbine\n")
+            return handle_single_turbine_veer!(buffers, RPl, RPw, location_t, set, windshear, d_rotor)
+        end
+        
+        print("multi turbine\n")
+        # Setup computation buffers
+        views = setup_computation_buffers_veer!(buffers, nRP, nT)
+
+
+        # Main wake computation loop
+        for iT in 1:(nT - 1)
+            compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, states_wf, 
+                                states_t, d_rotor, floris, nRP)
+        end
+        # Final wind shear computation
+        compute_final_wind_shear_veer!(buffers, RPl, RPw, location_t, set, windshear, 
+                                views[15], states_wf)  # views[15] is tmp_RPs_r
+
+
+
+        
+
+
+
+        nothing
+    else
+
+        #print("regular processing, no veer!" )
+        # Handle single turbine case
+        if length(d_rotor) == 1
+            return handle_single_turbine!(buffers, RPl, RPw, location_t, set, windshear, d_rotor)
+        end
+        
     
-    # Main wake computation loop
-    for iT in 1:(nT - 1)
-        compute_wake_effects!(buffers, views, iT, RPl, RPw, location_t, states_wf, 
-                             states_t, d_rotor, floris, nRP)
+        @infiltrate
+        #here: exfiltrate all + FLORISBuffers
+        
+        #use exfiltrate to get variable in right structure for testbench
+        views = setup_computation_buffers!(buffers, nRP, nT)
+
+        
+        # Main wake computation loop
+        for iT in 1:(nT - 1)
+            compute_wake_effects!(buffers, views, iT, RPl, RPw, location_t, states_wf, 
+                                states_t, d_rotor, floris, nRP)
+        end
+        # Final wind shear computation
+        compute_final_wind_shear!(buffers, RPl, RPw, location_t, set, windshear, 
+                                views[15], states_wf)  # views[15] is tmp_RPs_r
+
+
+        nothing
     end
-    # Final wind shear computation
-    compute_final_wind_shear!(buffers, RPl, RPw, location_t, set, windshear, 
-                              views[15], states_wf)  # views[15] is tmp_RPs_r
-
-
-    nothing
 end

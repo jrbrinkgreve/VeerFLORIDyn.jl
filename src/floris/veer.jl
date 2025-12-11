@@ -18,53 +18,124 @@ List of functions in this file:
 
 
 
-"""
+function handle_single_turbine_veer!(buffers, RPl, RPw, location_t, set, windshear, d_rotor)
 
-                             BUFFERS / INPLACE           |||        INPUT VARS
-        getVars!(sig_y, sig_z, x_0, delta, pc_y, pc_z, rps, c_t, yaw, ti, ti0, floris::Floris, d_rotor, veer_enabled)
 
-Compute Gaussian wake widths, deflection, potential-core radii, and onset distance at observation points, in-place.
-
-# Output Arguments
-- `sig_y::AbstractVector{<:Real}` (length n): Lateral Gaussian width σ_y at each point [m]
-- `sig_z::AbstractVector{<:Real}` (length n): Vertical Gaussian width σ_z at each point [m]
-- `x_0::AbstractVector{<:Real}` (length n): Onset distance of the far-wake x₀ [m]
-- `delta::AbstractMatrix{<:Real}` (length n×2): Deflection components `[Δy, Δz]` [m]
-- `pc_y::AbstractVector{<:Real}` (length n): Potential-core radius in y at each point [m]
-- `pc_z::AbstractVector{<:Real}` (length n): Potential-core radius in z at each point [m]
+end
 
 
 
+function setup_computation_buffers_veer!(buffers, nRP::Int, nT::Int)
+    # Initialize outputs in buffers
+    resize!(buffers.T_red_arr, nT); fill!(buffers.T_red_arr, 1.0)
+    resize!(buffers.T_aTI_arr, max(nT - 1, 0))
+    if nT > 1
+        fill!(buffers.T_aTI_arr, 0.0)
+    end
+    resize!(buffers.T_weight, max(nT - 1, 0))
+    if nT > 1
+        fill!(buffers.T_weight, 0.0)
+    end
 
-
-# Input Arguments
-- `rps::AbstractMatrix` (n×3): Observation points in wake-aligned frame; columns are `[x_downstream, y_cross, z_cross]` [m]
-- `c_t::Union{Number,AbstractVector}`: Thrust coefficient Ct (scalar or length n) [-]
-- `yaw::Union{Number,AbstractVector}`: Yaw misalignment (scalar or length n) [rad]
-- `ti::Union{Number,AbstractVector}`: Local turbulence intensity TI at turbine (scalar or length n) [-]
-- `ti0::Union{Number,AbstractVector}`: Ambient turbulence intensity TI₀ (scalar or length n) [-]
-- `floris::Floris`: FLORIS Gaussian model parameters; see [`Floris`](@ref)
-- `d_rotor::Real`: Rotor diameter D [m]
-
-
-"""
-
-function getVars!(sig_y, sig_z, x0, delta, pc_y, pc_z, RPs, Ct, yaw, TI, TI0, floris, D, veer_enabled::Int)
-    #note: wake aligned frame here means at hub height, and per definition veer angle at yaw angle is 0.0 deg
+    # Ensure buffers are properly sized
+    if size(buffers.tmp_RPs, 1) < nRP
+        error("Buffer tmp_RPs is too small: expected at least $(nRP) rows, got $(size(buffers.tmp_RPs, 1))")
+    end
+    if length(buffers.cw_y) < nRP
+        error("Buffer arrays are too small: expected at least $(nRP) elements, got $(length(buffers.cw_y))")
+    end
+    
+    # Use views of pre-allocated buffers to match the current discretization size exactly
+    tmp_RPs = view(buffers.tmp_RPs, 1:nRP, :)
+    sig_y = view(buffers.sig_y, 1:nRP)
+    sig_z = view(buffers.sig_z, 1:nRP)
+    x_0   = view(buffers.x_0, 1:nRP)
+    delta = view(buffers.delta, 1:nRP, :)
+    pc_y  = view(buffers.pc_y, 1:nRP)
+    pc_z  = view(buffers.pc_z, 1:nRP)
+    cw_y = view(buffers.cw_y, 1:nRP)
+    cw_z = view(buffers.cw_z, 1:nRP)
+    phi_cw = view(buffers.phi_cw, 1:nRP)
+    r_cw = view(buffers.r_cw, 1:nRP)
+    core = view(buffers.core, 1:nRP)
+    nw = view(buffers.nw, 1:nRP)
+    fw = view(buffers.fw, 1:nRP)
+    tmp_RPs_r = view(buffers.tmp_RPs_r, 1:nRP)
+    gaussAbs = view(buffers.gaussAbs, 1:nRP)
+    gaussWght = view(buffers.gaussWght, 1:nRP)
+    exp_y = view(buffers.exp_y, 1:nRP)
+    exp_z = view(buffers.exp_z, 1:nRP)
+    not_core = view(buffers.not_core, 1:nRP)
+    
+    
+    
+    #veer:
+    rps_coords = view(buffers.rps_coords, :,:)
+    alpha = view(buffers.alpha, :)
+    beta = view(buffers.beta, :)
+    gamma = view(buffers.gamma, :)
+    a_star = view(buffers.a_star, :)
+    xi_0_hat = view(buffers.xi_0_hat, :)
+    rotmtx = view(buffers.rotmtx, :, :)
+    coords_veered = view(buffers.coords_veered, :, :)
+    shear_modifier = view(buffers.shear_modifier, :)
+    u_in_z = view(buffers.u_in_z, :)
+    t_hat = view(buffers.t_hat, :)
+    sgn_t_hat = view(buffers.sgn_t_hat, :)
+    abs_t_hat = view(buffers.abs_t_hat, :)
+    y_hat_c = view(buffers.y_hat_c, :)
+    y_c = view(buffers.y_c, :)
+    theta = view(buffers.theta, :)
+    xi_0 = view(buffers.xi_0, :)
+    xi_hat = view(buffers.xi_hat, :)
+    chi = view(buffers.chi, :)  
+    a = view(buffers.a, :)
+    c1 = view(buffers.c1, :)
+    c2 = view(buffers.c2, :)
+    c3 = view(buffers.c3, :)
+    c4 = view(buffers.c4, :)
+    c5 = view(buffers.c5, :)
+    c6 = view(buffers.c6, :)
+    c7 = view(buffers.c7, :)
+    xi = view(buffers.xi, :)
+    sigma = view(buffers.sigma, :)
+    sigma_hat_squared = view(buffers.sigma_hat_squared, :)
+    c = view(buffers.c, :)
+    du = view(buffers.du, :)
+    u = view(buffers.u, :)
+    tmp = view(buffers.tmp, :)
     
 
-    
+    return (tmp_RPs, sig_y, sig_z, x_0, delta, pc_y, pc_z, cw_y, cw_z, phi_cw, r_cw, 
+            core, nw, fw, tmp_RPs_r, gaussAbs, gaussWght, exp_y, exp_z, not_core, rps_coords,
+            alpha, beta, gamma, a_star, xi_0_hat, rotmtx, coords_veered, shear_modifier, u_in_z, t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c, theta, xi_0, xi_hat, chi, a, c1, c2, c3, c4, c5, c6, c7, xi, sigma, sigma_hat_squared, c, du, u, tmp)
 
 
-    return nothing
+end
+
+
+
+function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, states_wf, 
+                                states_t, d_rotor, floris, nRP)
+
+
+
 end
 
 
 
 
-#=
-use 2023 wake combination paper by Li et al. for wake combination using sum of squares for velocity deficits
+function compute_final_wind_shear_veer!(buffers, RPl, RPw, location_t, set::Settings, 
+                                  windshear, tmp_RPs_r, states_wf)
+
+end
 
 
 
-=#
+
+
+
+
+
+
+

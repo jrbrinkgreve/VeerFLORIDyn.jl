@@ -12,19 +12,16 @@ using LinearAlgebra
 using StaticArrays
 using Infiltrator
 
-
-
-
-
 include("veer.jl")
 include("structs_floris.jl")
 include("runfloris.jl")
 include("gaussian.jl")
 
+
+
+
 buffers = FLORISBuffers(safehouse.nRP)
-
-
-runFLORIS!(buffers, safehouse.set, safehouse.location_t, safehouse.states_wf, safehouse.states_t, safehouse.d_rotor, safehouse.floris, safehouse.windshear)   
+safehouse.set.enable_veer = true
 
 #=
 procedure for getting safehouse:
@@ -37,3 +34,26 @@ procedure for getting safehouse:
 
 now ready for runFLORIS dev
 =#
+
+#note, NOT safehouse.buffers
+runFLORIS!(buffers, safehouse.set, safehouse.location_t, safehouse.states_wf, safehouse.states_t, safehouse.d_rotor, safehouse.floris, safehouse.windshear)   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

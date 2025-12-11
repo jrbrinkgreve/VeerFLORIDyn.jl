@@ -213,7 +213,7 @@ mutable struct Settings
     induction_mode
     parallel::Bool
     threading::Bool
-    veer_enabled::Bool
+    enable_veer::Bool
 end
 
 """
