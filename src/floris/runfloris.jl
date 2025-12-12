@@ -718,7 +718,7 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
             compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, states_wf, 
                                 states_t, d_rotor, floris, nRP, set, windshear)
 
-
+                        
                                 #AAAAAA 
                                 #question here: so i need an inflow velocity for model,
                                 # how do i get this?
@@ -732,7 +732,7 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
 
 
         
-
+        
 
 
         nothing

@@ -339,6 +339,10 @@ A mutable struct representing the settings for the FLORIDyn simulation.
     #veer below
     veer_gradient::Float64
     angle_tol::Float64
+    u_star::Float64
+    k::Float64
+    tsr::Float64  #note: we assume optimal tsr for now, should be linked later
+    
 end
 
 """
@@ -1593,7 +1597,7 @@ divide evenly, the remainder turbines are distributed to the first groups.
 # Examples
 ```julia
 # Load turbine array from configuration
-wind, sim, con, floris, floridyn, ta = setup("data/2021_54T_NordseeOne.yaml")
+wind, sim, con, teams, floridyn, ta = setup("data/2021_54T_NordseeOne.yaml")
 
 # Create 8 groups based on X coordinates
 ta_8groups = create_n_groups(ta, 8)

@@ -280,7 +280,7 @@ function getVars_veer!(rps_coords,
     pisq = pi^2.0    
     pim1 = pi - 1.0
     nRP, _ = size(rps_coords)
-    R = D/2.0
+    R = D / 2.0
   
 
 
@@ -311,25 +311,70 @@ function getVars_veer!(rps_coords,
         #AAAAA      CONTINUE DEVELOPMENT FROM HERE: ADD USTAR TO FLORIS PARAMS STRUCT
 
         t_hat[i] = (
-            -1.44 * u_in_z[i]/ floris.u_star * par.R / xi_0_hat[i] * par.CT  
+            -1.44 * u_in_z[i]/ floris.u_star * R / xi_0_hat[i] * CT  
             * cos(gamma[i])^2 * sin(gamma[i])  *
-            (1.0 - exp( -0.35   * par.u_star / (u_in_z[i]) *  coords_veered[i,1] / par.R )   )
+            (1.0 - exp( -0.35   * floris.u_star / (u_in_z[i]) *  coords_veered[i,1] / R )   )
         )
         
         y_hat_c[i] = ((pim1 *  abs(t_hat[i])^3 + 2.0sqrt3 * pisq * t_hat[i]^2 + 48.0pim1^2 * abs(t_hat[i] ) ) / 
                 (2.0*pi*pim1 * t_hat[i]^2 + 4.0sqrt3 * pisq * abs(t_hat[i]) + 96.0 * pim1^2) * sign(t_hat[i]) - 
-                (2.0 / pi) * t_hat[i]  / (((coords_veered[i,3] + par.z_hub  ) / xi_0_hat[i])^2 - 1.0)  
+                (2.0 / pi) * t_hat[i]  / (((coords_veered[i,3] + z_hub  ) / xi_0_hat[i])^2 - 1.0)  
 
         )
 
+        y_c[i] = y_hat_c[i] * xi_0_hat[i]
+        
+        if abs(coords_veered[i,3] - z_hub) < 1e-10
+             theta[i] = 0.0
+        else
+            theta[i] = atan( (coords_veered[i,3] - z_hub) / (coords_veered[i,2] - y_c[i]) )
+        end
 
-        #note: here theres a conceptual difference with the other FLORIS model: 
 
-        #Mohammadi calculates the u field without any combination,
-        #while FLORIS does this combined stuff in some way (missing comments so idk how)
+        #eq 9: initial wake shape
+        xi_0[i] = R*sqrt(a_star[i]) * abs(cos(gamma[i])) / sqrt(1.0 - (sin(gamma[i]) * sin(theta[i]) )^2   )
+        
+        if gamma[i] < floris.angle_tol
+            chi[i] = 0.0
+            xi_hat[i] = 1.0
+        else
 
-        #so basically have to find out how to structure code using the mohammadi model
+            chi[i] = 1.0 / (floris.tsr * sin(gamma[i]))
+            a[i] = 1.263 * cos(0.33 * chi[i])
+            
+            c1[i] = 0.5 * tanh(t_hat[i]^2 / (4.0*a[i]))
+            c2[i] = (-1.0/3.0) * tanh(t_hat[i]^3 / (8.0*a[i]))
+            c3[i] = -0.25 * tanh(t_hat[i]^3 / (8.0*a[i]))
+            c4[i] = (-1.0/6.0) * tanh(t_hat[i]^4 / (16.0*a[i]))
+            c5[i] = (5.0/16.0) * tanh(t_hat[i]^4 / (16.0*a[i]))
+            c6[i] = (-5.0/48.0) * tanh(t_hat[i]^4 / (16.0*a[i]))
+            c7[i] = (7.0/48.0) * tanh(t_hat[i]^4 / (16.0*a[i]))
 
+
+            xi_hat[i] = 1.0 - a[i]*(
+                c1[i] * cos(2.0theta[i]) +
+                c2[i] * chi[i] * sin(2.0theta[i]) +
+                c3[i] * cos(3.0theta[i]) +
+                c4[i] * chi[i]^2 * cos(2.0theta[i]) +
+                c5[i] * chi[i] * sin(3.0theta[i]) +
+                c6[i] * cos(2.0theta[i]) +
+                c7[i] * cos(4.0theta[i])
+            )
+        end
+        
+
+
+        xi[i] = xi_0[i] * xi_hat[i]
+        sigma_hat_squared[i] = (
+            (floris.k * floris.u_star / (u_in_z[i])  * coords_veered[i,1] + 0.4 * xi_0_hat[i]) *
+            (floris.k * floris.u_star / (u_in_z[i])  * coords_veered[i,1] + 0.4 * xi_0_hat[i] * cos(gamma[i]))
+        ) # == (kx + 0.4 xi_0_hat     )(         ) 
+        sigma[i] = (floris.k * floris.u_star / (u_in_z[i])  * coords_veered[i,1] + 0.4 * xi[i])
+
+        #eq 15: velocity deficit
+        c[i] = 1.0 - sqrt(max(0.001,      1.0 - R^2 * CT * cos(gamma[i])^3 / (2.0 * sigma_hat_squared[i]) ))
+        du[i] = c[i] * exp(- ((coords_veered[i,2] - y_c[i])^2 + (coords_veered[i,3] - z_hub)^2 )  / (2.0*sigma[i]^2)   ) * (u_in_z[i])
+        u[i] = u_in_z[i] - du[i]
 
         
         
