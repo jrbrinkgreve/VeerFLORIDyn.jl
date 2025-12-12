@@ -41,4 +41,11 @@ note to self: next time continue at checking centerline stuff,
 
 
 
+
+
+next time: continue with implementing wake superposition!!!
+
+
+
+
 =#

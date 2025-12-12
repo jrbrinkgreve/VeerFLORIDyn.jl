@@ -585,7 +585,7 @@ function compute_final_wind_shear!(buffers, RPl, RPw, location_t, set::Settings,
     end
     redShear = getWindShearT(set.shear_mode, windshear, tmp_RPs_r)
     buffers.T_red_arr[end] = dot(RPw, redShear)
-
+    #@infiltrate 
     T_red = prod(buffers.T_red_arr)
     T_Ueff_scalar = states_wf[end, 1] * T_red
     resize!(buffers.T_Ueff, 1); buffers.T_Ueff[1] = T_Ueff_scalar
