@@ -337,11 +337,11 @@ A mutable struct representing the settings for the FLORIDyn simulation.
     TIexp::Int
     rotor_points::Union{Nothing, Int64} = nothing
     #veer below
-    veer_gradient::Float64
-    angle_tol::Float64
-    u_star::Float64
-    k::Float64
-    tsr::Float64  #note: we assume optimal tsr for now, should be linked later
+    veer_gradient::Float64 = 0.0
+    angle_tol::Float64 = 0.0
+    u_star::Float64 = 0.0
+    k::Float64 = 0.0
+    tsr::Float64 = 0.0  #note: we assume optimal tsr for now, should be linked later
     
 end
 

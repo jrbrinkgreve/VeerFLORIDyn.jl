@@ -488,7 +488,7 @@ function compute_wake_effects!(buffers, views, iT::Int, RPl, RPw, location_t,
     end
     
     if any_not_core
-        @inbounds for i in 1:nRP
+        @inbounds for i in 1:nRP                    
             if not_core[i]
                 sig_y_val = sig_y[i]
                 sig_z_val = sig_z[i]
@@ -507,7 +507,7 @@ function compute_wake_effects!(buffers, views, iT::Int, RPl, RPw, location_t,
 
     buffers.T_weight[iT] = sum(gaussWght)
     buffers.T_red_arr[iT] = 1 - dot(RPw, tmp_RPs_r)
-
+    @infiltrate
     # Added TI
     T_addedTI_tmp = floris.k_fa * (
         a_val^floris.k_fb *
@@ -695,6 +695,8 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
     nT = length(d_rotor)
 
     if set.enable_veer == true
+        #THIS SECTION IS WITH VEER ENABLED
+
         print("veer processing\n")
         #veer processing code here
 
@@ -702,7 +704,6 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
 
         # Handle single turbine case
         if length(d_rotor) == 1
-    
             print("single turbine\n")
             return handle_single_turbine_veer!(buffers, RPl, RPw, location_t, set, windshear, d_rotor)
         end
@@ -719,10 +720,7 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
                                 states_t, d_rotor, floris, nRP, set, windshear)
 
                         
-                                #AAAAAA 
-                                #question here: so i need an inflow velocity for model,
-                                # how do i get this?
-                                #also windshear, afterwards or mid computation?
+                            
 
         end
         # Final wind shear computation
@@ -738,7 +736,7 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
         nothing
     else
 
-        #print("regular processing, no veer!" )
+        #NOTE: THIS SECTION IS FOR REGULAR FLORIS WITHOUT VEER
         # Handle single turbine case
         if length(d_rotor) == 1
             #@infiltrate
@@ -746,7 +744,7 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
         end
         
     
-        @infiltrate
+        #@infiltrate
         #use exfiltrate to get variable in right structure for testbench
 
 

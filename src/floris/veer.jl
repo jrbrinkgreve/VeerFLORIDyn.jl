@@ -249,7 +249,7 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
    
     
     #get Mohammadi model parameters / velocity field writting inplace to u
-    getVars_veer!(  
+    get_velocity_veer!(  
         tmp_RPs,
         alpha, yaw, gamma, a_star, xi_0_hat, coords_veered, shear_modifier, u_in_z,
         t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c, theta, xi_0, xi_hat, chi, a, c1, c2, c3, 
@@ -258,6 +258,11 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
         z_hub, set, windshear, u_hub[iT] )  #get hub velocity of turbine causing the wake
     
 
+
+
+
+
+    #buffers.T_red_arr[iT] = 
 end
 
 
@@ -269,7 +274,7 @@ end
 
 
 
-function getVars_veer!(rps_coords,
+function get_velocity_veer!(rps_coords,
             alpha, beta, gamma, a_star, xi_0_hat, coords_veered, shear_modifier, u_in_z,
             t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c, theta, xi_0, xi_hat, chi, a, c1, c2, c3, 
             c4, c5, c6, c7, xi, sigma, sigma_hat_squared, c, du, u, tmp,
