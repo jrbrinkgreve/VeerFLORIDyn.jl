@@ -223,6 +223,7 @@ u, wind = getDataVel(set, wind, wf, 100.0, tmp_m, floris)
 ```
 """
 function getDataVel(set::Settings, wind::Wind, wf::WindFarm, t, tmp_m, floris::Floris)
+    @infiltrate
     idx = 1:wf.nT  # avoid temporary allocation from collect
     u = nothing
     if wind.input_vel == "I_and_I"

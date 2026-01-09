@@ -500,14 +500,18 @@ function compute_wake_effects!(buffers, views, iT::Int, RPl, RPw, location_t,
                 exp_y[i] = exp(-0.5 * y_term^2)
                 exp_z[i] = exp(-0.5 * z_term^2)
                 gaussWght[i] = exp_y[i] * exp_z[i]
-                tmp_RPs_r[i] = gaussAbs[i] * gaussWght[i]
+                tmp_RPs_r[i] = gaussAbs[i] * gaussWght[i] #note: from Bastankhah model, equals dU/ Uinf 
             end
         end
     end
 
     buffers.T_weight[iT] = sum(gaussWght)
     buffers.T_red_arr[iT] = 1 - dot(RPw, tmp_RPs_r)
-    @infiltrate
+    #can just add the t_red_arr here (but then in the veer one)! we know the reduction factors
+    #from the wake model
+    #buffers.T_red_arr[iT] = 1 - dot(RPw, du ./ u) or something
+
+    #@infiltrate
     # Added TI
     T_addedTI_tmp = floris.k_fa * (
         a_val^floris.k_fb *
@@ -585,9 +589,10 @@ function compute_final_wind_shear!(buffers, RPl, RPw, location_t, set::Settings,
     end
     redShear = getWindShearT(set.shear_mode, windshear, tmp_RPs_r)
     buffers.T_red_arr[end] = dot(RPw, redShear)
-    #@infiltrate 
+
     T_red = prod(buffers.T_red_arr)
     T_Ueff_scalar = states_wf[end, 1] * T_red
+    #@infiltrate
     resize!(buffers.T_Ueff, 1); buffers.T_Ueff[1] = T_Ueff_scalar
     nothing
 end
@@ -687,7 +692,7 @@ The function implements state-of-the-art wake modeling based on:
 - [`Floris`](@ref): FLORIS model parameters
 """
 function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_rotor, floris, 
-                   windshear::Union{Matrix, WindShear})
+                   windshear::Union{Matrix, WindShear})           
     # Prepare rotor points (RPl, RPw)
     RPl, RPw = prepare_rotor_points!(buffers, location_t, states_t, d_rotor, floris)
 
