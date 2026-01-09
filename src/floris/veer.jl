@@ -257,12 +257,16 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
         Ct, TI, TI0, floris, d_rotor[iT],  #get rotor diameter of turbine causing the wake
         z_hub, set, windshear, u_hub[iT] )  #get hub velocity of turbine causing the wake
     
+    #buffers.T_red_arr[iT] = dot(du, RPw)
+    AAAAAAAAA  ^^^^^ continue development from here ^^^^^^^
 
 
 
 
 
-    #buffers.T_red_arr[iT] = 
+
+
+
 end
 
 
@@ -271,7 +275,7 @@ end
 
 #----------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------
-
+#Mohammadi wake model implementation
 
 
 function get_velocity_veer!(rps_coords,
@@ -309,7 +313,7 @@ function get_velocity_veer!(rps_coords,
         coords_veered[i,3] = rps_coords[i,3] 
 
         #compute shear modifier at RP height
-        shear_modifier[i] = getWindShearT(set.shear_mode, windshear, coords_veered[i,3]/z_hub)
+        shear_modifier[i] = 1.0    #note, shear is applied later!!!! #getWindShearT(set.shear_mode, windshear, coords_veered[i,3]/z_hub)
         u_in_z[i] = u_hub * shear_modifier[i]   #note: check whether this shear modifier is correct
         
 
@@ -378,8 +382,9 @@ function get_velocity_veer!(rps_coords,
 
         #eq 15: velocity deficit
         c[i] = 1.0 - sqrt(max(0.001,      1.0 - R^2 * CT * cos(gamma[i])^3 / (2.0 * sigma_hat_squared[i]) ))
-        du[i] = c[i] * exp(- ((coords_veered[i,2] - y_c[i])^2 + (coords_veered[i,3] - z_hub)^2 )  / (2.0*sigma[i]^2)   ) * (u_in_z[i])
-        u[i] = u_in_z[i] - du[i]
+        du[i] = c[i] * exp(- ((coords_veered[i,2] - y_c[i])^2 + (coords_veered[i,3] - z_hub)^2 )  / (2.0*sigma[i]^2)   )
+        #note that this du is a factor, and is relative
+        u[i] = u_in_z[i]* (1.0 - du[i])
 
         
         
@@ -393,12 +398,13 @@ end
 
 #----------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------
-
+#wake superposition with veer
 
 
 
 function compute_final_wind_shear_veer!(buffers, RPl, RPw, location_t, set::Settings, 
                                   windshear, tmp_RPs_r, states_wf)
+
 
 end
 

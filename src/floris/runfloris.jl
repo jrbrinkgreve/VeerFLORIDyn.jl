@@ -717,7 +717,7 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
         # Setup computation buffers
         views = setup_computation_buffers_veer!(buffers, nRP, nT)
 
-        
+        @infiltrate (length(d_rotor) > 1)
         # Main wake computation loop
         #computes the wake effects on the last turbine in location_t due to turbine iT
         for iT in 1:(nT - 1)
