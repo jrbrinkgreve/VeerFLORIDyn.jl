@@ -24,8 +24,8 @@ wind:
   # - InterpTurbine
   # - InterpTurbine_wErrorCov
   # - RW_with_mean             random walk with mean
-  input_dir: Interpolation
-  dir_fixed: 270.0 # fixed wind direction for 'Constant' method [°]
+  input_dir: Constant #Interpolation
+  dir_fixed: 180.0 #270.0 # fixed wind direction for 'Constant' method [°]
   # Ambient Turbulence Intensity Input
   # - Interpolation
   # - InterpTurbine (Interpolation per turbine)
@@ -180,7 +180,7 @@ turbines:
     - id: 2
       type: DTU 10MW
       x: 1500
-      y: 2400
+      y: 2400 #2400
       z: 0
       a: 0.33
       yaw: 0

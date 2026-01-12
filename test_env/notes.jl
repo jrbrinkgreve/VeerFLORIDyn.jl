@@ -54,7 +54,7 @@ and also start writing code diagrams in the notebook!
 
 
 wake superposition: directly via wind speeds
-power calculation script directly connected
+
 
 
 =#

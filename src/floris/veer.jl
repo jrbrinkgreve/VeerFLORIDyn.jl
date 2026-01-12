@@ -44,7 +44,7 @@ function handle_single_turbine_veer!(buffers, RPl, RPw, location_t, set, windshe
     end
     z_view = @view buffers.tmp_RPs_r[1:nRP_local]
     redShear = getWindShearT(set.shear_mode, windshear, z_view)  #normalized!
-    @infiltrate
+    
     
     
     
@@ -221,7 +221,7 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
 
     #prob a break on a failed sanity check
     if tmp_RPs[1, 1] <= 10
-        print("something went wrong, veer.jl line 224")
+        #print("something went wrong, veer.jl line 224")
         return nothing
     end
 
@@ -249,16 +249,33 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
    
     
     #get Mohammadi model parameters / velocity field writting inplace to u
+    
     get_velocity_veer!(  
         tmp_RPs,
         alpha, yaw, gamma, a_star, xi_0_hat, coords_veered, shear_modifier, u_in_z,
         t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c, theta, xi_0, xi_hat, chi, a, c1, c2, c3, 
         c4, c5, c6, c7, xi, sigma, sigma_hat_squared, c, du, u, tmp,
         Ct, TI, TI0, floris, d_rotor[iT],  #get rotor diameter of turbine causing the wake
-        z_hub, set, windshear, u_hub[iT] )  #get hub velocity of turbine causing the wake
+        z_hub, set, windshear, u_hub )  #get hub velocity of turbine causing the wake
     
-    #buffers.T_red_arr[iT] = dot(du, RPw)
-    AAAAAAAAA  ^^^^^ continue development from here ^^^^^^^
+
+    #converting velocity deficit over whole rotor to average velocity deficit
+    
+    
+
+    buffers.T_red_arr[iT] = 0.0
+    if length(RPw) != nRP
+        print(RPw)
+    end
+
+    #to be added later
+    buffers.T_red_arr[iT] = 0.0
+    buffers.T_weight[iT] = 1.0
+    buffers.T_aTI_arr[iT] = 0.0
+
+
+    
+    
 
 
 
@@ -294,7 +311,7 @@ function get_velocity_veer!(rps_coords,
 
 
 
-
+    
     for i in 1:nRP                #use inbounds for performance
         #do the wake model evaluation per RP here:
         # determining veered wind directon at RP height
@@ -318,7 +335,7 @@ function get_velocity_veer!(rps_coords,
         
 
         #AAAAA      CONTINUE DEVELOPMENT FROM HERE: ADD USTAR TO FLORIS PARAMS STRUCT
-
+    
         t_hat[i] = (
             -1.44 * u_in_z[i]/ floris.u_star * R / xi_0_hat[i] * CT  
             * cos(gamma[i])^2 * sin(gamma[i])  *
@@ -389,7 +406,7 @@ function get_velocity_veer!(rps_coords,
         
         
     end
-    @infiltrate
+    
 
 end
 
@@ -405,8 +422,36 @@ end
 function compute_final_wind_shear_veer!(buffers, RPl, RPw, location_t, set::Settings, 
                                   windshear, tmp_RPs_r, states_wf)
 
+                               
+    nRP = size(RPl, 1)
+    
+    # Compute z for wind shear:
+    # - Power law expects normalized height (clamped positive)
+    # - Interpolation expects absolute height (meters)
+    if set.shear_mode isa Shear_PowerLaw
+        @inbounds for i in 1:nRP
+            val = RPl[i, 3] / location_t[end, 3]
+            tmp_RPs_r[i] = val > eps() ? val : eps()
+        end
+    else
+        @inbounds for i in 1:nRP
+            tmp_RPs_r[i] = RPl[i, 3]
+        end
+    end
+    redShear = getWindShearT(set.shear_mode, windshear, tmp_RPs_r)
+    buffers.T_red_arr[end] = dot(RPw, redShear)
 
+    T_red = prod(buffers.T_red_arr)
+    T_Ueff_scalar = states_wf[end, 1] * T_red
+    
+    
+
+    resize!(buffers.T_Ueff, 1); buffers.T_Ueff[1] = T_Ueff_scalar
+    nothing
 end
+
+
+
 
 
 

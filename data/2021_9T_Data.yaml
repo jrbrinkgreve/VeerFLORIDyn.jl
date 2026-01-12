@@ -24,8 +24,8 @@ wind:
   # - InterpTurbine
   # - InterpTurbine_wErrorCov
   # - RW_with_mean             random walk with mean
-  input_dir: Interpolation
-  dir_fixed: 270.0 # fixed wind direction for 'Constant' method [°]
+  input_dir: Constant #Interpolation
+  dir_fixed: 180.0 # fixed wind direction for 'Constant' method [°]
   # Ambient Turbulence Intensity Input
   # - Interpolation
   # - InterpTurbine (Interpolation per turbine)
@@ -153,7 +153,7 @@ floris:
   TIexp: 3 # TI crosswind distribution is modelled as a factor of sigma_y and sigma_z.
            # This is in contrast to previous literature which assumed a fixed box area and the
            # turbines therein as source of higher TI.
-  #veer params:           
+      
   
 
 floridyn:

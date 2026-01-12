@@ -501,11 +501,13 @@ function compute_wake_effects!(buffers, views, iT::Int, RPl, RPw, location_t,
                 exp_z[i] = exp(-0.5 * z_term^2)
                 gaussWght[i] = exp_y[i] * exp_z[i]
                 tmp_RPs_r[i] = gaussAbs[i] * gaussWght[i] #note: from Bastankhah model, equals dU/ Uinf 
+                #println(tmp_RPs_r[i])
             end
         end
     end
 
     buffers.T_weight[iT] = sum(gaussWght)
+    
     buffers.T_red_arr[iT] = 1 - dot(RPw, tmp_RPs_r)
     #can just add the t_red_arr here (but then in the veer one)! we know the reduction factors
     #from the wake model
@@ -702,22 +704,22 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
     if set.enable_veer == true
         #THIS SECTION IS WITH VEER ENABLED
 
-        print("veer processing\n")
+        #print("veer processing\n")
         #veer processing code here
 
 
 
         # Handle single turbine case
         if length(d_rotor) == 1
-            print("single turbine\n")
+            #print("single turbine\n")
             return handle_single_turbine_veer!(buffers, RPl, RPw, location_t, set, windshear, d_rotor)
         end
         
-        print("multi turbine\n")
+        #print("multi turbine\n")
         # Setup computation buffers
         views = setup_computation_buffers_veer!(buffers, nRP, nT)
 
-        @infiltrate (length(d_rotor) > 1)
+        
         # Main wake computation loop
         #computes the wake effects on the last turbine in location_t due to turbine iT
         for iT in 1:(nT - 1)
