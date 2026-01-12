@@ -263,9 +263,10 @@ function getMeasurements(buffers, mx, my, nM, zh, wf::WindFarm, set::Settings, f
             end
 
             interpolateOPs!(unified_buffers, GP.intOPs, GP)
-
+            
             setUpTmpWFAndRun!(unified_buffers, GP, set, floris, wind)
             tmpM = unified_buffers.M_buffer
+        
 
             @views gridPointResult = tmpM[end, :]
 

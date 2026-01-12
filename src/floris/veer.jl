@@ -116,40 +116,40 @@ function setup_computation_buffers_veer!(buffers, nRP::Int, nT::Int)
     
     
     #veer:
-    rps_coords = view(buffers.rps_coords, :,:)
-    alpha = view(buffers.alpha, :)
-    beta = view(buffers.beta, :)
-    gamma = view(buffers.gamma, :)
-    a_star = view(buffers.a_star, :)
-    xi_0_hat = view(buffers.xi_0_hat, :)
+    rps_coords = view(buffers.rps_coords, 1:nRP,:)
+    alpha = view(buffers.alpha, 1:nRP)
+    beta = view(buffers.beta, 1:nRP)
+    gamma = view(buffers.gamma, 1:nRP)
+    a_star = view(buffers.a_star, 1:nRP)
+    xi_0_hat = view(buffers.xi_0_hat, 1:nRP)
     rotmtx = view(buffers.rotmtx, :, :)
-    coords_veered = view(buffers.coords_veered, :, :)
-    shear_modifier = view(buffers.shear_modifier, :)
-    u_in_z = view(buffers.u_in_z, :)
-    t_hat = view(buffers.t_hat, :)
-    sgn_t_hat = view(buffers.sgn_t_hat, :)
-    abs_t_hat = view(buffers.abs_t_hat, :)
-    y_hat_c = view(buffers.y_hat_c, :)
-    y_c = view(buffers.y_c, :)
-    theta = view(buffers.theta, :)
-    xi_0 = view(buffers.xi_0, :)
-    xi_hat = view(buffers.xi_hat, :)
-    chi = view(buffers.chi, :)  
-    a = view(buffers.a, :)
-    c1 = view(buffers.c1, :)
-    c2 = view(buffers.c2, :)
-    c3 = view(buffers.c3, :)
-    c4 = view(buffers.c4, :)
-    c5 = view(buffers.c5, :)
-    c6 = view(buffers.c6, :)
-    c7 = view(buffers.c7, :)
-    xi = view(buffers.xi, :)
-    sigma = view(buffers.sigma, :)
-    sigma_hat_squared = view(buffers.sigma_hat_squared, :)
-    c = view(buffers.c, :)
-    du = view(buffers.du, :)
-    u = view(buffers.u, :)
-    tmp = view(buffers.tmp, :)
+    coords_veered = view(buffers.coords_veered, 1:nRP, :)
+    shear_modifier = view(buffers.shear_modifier, 1:nRP)
+    u_in_z = view(buffers.u_in_z, 1:nRP)
+    t_hat = view(buffers.t_hat, 1:nRP)
+    sgn_t_hat = view(buffers.sgn_t_hat, 1:nRP)
+    abs_t_hat = view(buffers.abs_t_hat, 1:nRP)
+    y_hat_c = view(buffers.y_hat_c, 1:nRP)
+    y_c = view(buffers.y_c, 1:nRP)
+    theta = view(buffers.theta, 1:nRP)
+    xi_0 = view(buffers.xi_0, 1:nRP)
+    xi_hat = view(buffers.xi_hat, 1:nRP)
+    chi = view(buffers.chi, 1:nRP)  
+    a = view(buffers.a, 1:nRP)
+    c1 = view(buffers.c1, 1:nRP)
+    c2 = view(buffers.c2, 1:nRP)
+    c3 = view(buffers.c3, 1:nRP)
+    c4 = view(buffers.c4, 1:nRP)
+    c5 = view(buffers.c5, 1:nRP)
+    c6 = view(buffers.c6, 1:nRP)
+    c7 = view(buffers.c7, 1:nRP)
+    xi = view(buffers.xi, 1:nRP)
+    sigma = view(buffers.sigma, 1:nRP)
+    sigma_hat_squared = view(buffers.sigma_hat_squared, 1:nRP)
+    c = view(buffers.c, 1:nRP)
+    du = view(buffers.du, 1:nRP)
+    u = view(buffers.u, 1:nRP)
+    tmp = view(buffers.tmp, 1:nRP)
     
 
     return (tmp_RPs, sig_y, sig_z, x_0, delta, pc_y, pc_z, cw_y, cw_z, phi_cw, r_cw, 
@@ -220,8 +220,7 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
     end
 
     #prob a break on a failed sanity check
-    if tmp_RPs[1, 1] <= 10
-        #print("something went wrong, veer.jl line 224")
+    if tmp_RPs[1, 1] <= 10.0
         return nothing
     end
 
@@ -247,9 +246,8 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
     mean_x /= nRP
 
    
-    
-    #get Mohammadi model parameters / velocity field writting inplace to u
-    
+   
+    #get Mohammadi model parameters / velocity field writting inplace to du / u
     get_velocity_veer!(  
         tmp_RPs,
         alpha, yaw, gamma, a_star, xi_0_hat, coords_veered, shear_modifier, u_in_z,
@@ -259,17 +257,16 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
         z_hub, set, windshear, u_hub )  #get hub velocity of turbine causing the wake
     
 
-    #converting velocity deficit over whole rotor to average velocity deficit
-    
-    
 
-    buffers.T_red_arr[iT] = 0.0
-    if length(RPw) != nRP
-        print(RPw)
-    end
+    
+    
+    
+    buffers.T_red_arr[iT] = 1.0 - dot(RPw, du)
+    
+    
 
     #to be added later
-    buffers.T_red_arr[iT] = 0.0
+    
     buffers.T_weight[iT] = 1.0
     buffers.T_aTI_arr[iT] = 0.0
 
@@ -307,7 +304,7 @@ function get_velocity_veer!(rps_coords,
     pim1 = pi - 1.0
     nRP, _ = size(rps_coords)
     R = D / 2.0
-  
+    
 
 
 
@@ -398,7 +395,8 @@ function get_velocity_veer!(rps_coords,
         sigma[i] = (floris.k * floris.u_star / (u_in_z[i])  * coords_veered[i,1] + 0.4 * xi[i])
 
         #eq 15: velocity deficit
-        c[i] = 1.0 - sqrt(max(0.001,      1.0 - R^2 * CT * cos(gamma[i])^3 / (2.0 * sigma_hat_squared[i]) ))
+        #note the max(0.05, ... ) to limit the max deficit to 95%
+        c[i] = 1.0 - sqrt(max(0.05,   1.0 - R^2 * CT * cos(gamma[i])^3 / (2.0 * sigma_hat_squared[i]) ))
         du[i] = c[i] * exp(- ((coords_veered[i,2] - y_c[i])^2 + (coords_veered[i,3] - z_hub)^2 )  / (2.0*sigma[i]^2)   )
         #note that this du is a factor, and is relative
         u[i] = u_in_z[i]* (1.0 - du[i])
@@ -431,17 +429,22 @@ function compute_final_wind_shear_veer!(buffers, RPl, RPw, location_t, set::Sett
     if set.shear_mode isa Shear_PowerLaw
         @inbounds for i in 1:nRP
             val = RPl[i, 3] / location_t[end, 3]
-            tmp_RPs_r[i] = val > eps() ? val : eps()
+            tmp_RPs_r[i] = val > eps() ? val : eps()            #NOTE: reuse of buffered tmp_RPs_r ==  RP z coord
         end
-    else
+    else     
         @inbounds for i in 1:nRP
-            tmp_RPs_r[i] = RPl[i, 3]
+            tmp_RPs_r[i] = RPl[i, 3]   #NOTE: reuse of buffered tmp_RPs_r ==  RP z coord
+            
         end
     end
+
     redShear = getWindShearT(set.shear_mode, windshear, tmp_RPs_r)
     buffers.T_red_arr[end] = dot(RPw, redShear)
 
+
     T_red = prod(buffers.T_red_arr)
+    #println(buffers.T_red_arr')
+    
     T_Ueff_scalar = states_wf[end, 1] * T_red
     
     

@@ -501,14 +501,16 @@ function compute_wake_effects!(buffers, views, iT::Int, RPl, RPw, location_t,
                 exp_z[i] = exp(-0.5 * z_term^2)
                 gaussWght[i] = exp_y[i] * exp_z[i]
                 tmp_RPs_r[i] = gaussAbs[i] * gaussWght[i] #note: from Bastankhah model, equals dU/ Uinf 
-                #println(tmp_RPs_r[i])
             end
         end
     end
 
     buffers.T_weight[iT] = sum(gaussWght)
     
-    buffers.T_red_arr[iT] = 1 - dot(RPw, tmp_RPs_r)
+    buffers.T_red_arr[iT] = 1.0 - dot(RPw, tmp_RPs_r)
+
+
+    
     #can just add the t_red_arr here (but then in the veer one)! we know the reduction factors
     #from the wake model
     #buffers.T_red_arr[iT] = 1 - dot(RPw, du ./ u) or something
@@ -575,6 +577,7 @@ This function is **private** and intended for internal use only.
 function compute_final_wind_shear!(buffers, RPl, RPw, location_t, set::Settings, 
                                   windshear, tmp_RPs_r, states_wf)
     nRP = size(RPl, 1)
+   
     
     # Compute z for wind shear:
     # - Power law expects normalized height (clamped positive)
@@ -582,15 +585,20 @@ function compute_final_wind_shear!(buffers, RPl, RPw, location_t, set::Settings,
     if set.shear_mode isa Shear_PowerLaw
         @inbounds for i in 1:nRP
             val = RPl[i, 3] / location_t[end, 3]
-            tmp_RPs_r[i] = val > eps() ? val : eps()
+            tmp_RPs_r[i] = val > eps() ? val : eps() 
         end
     else
         @inbounds for i in 1:nRP
             tmp_RPs_r[i] = RPl[i, 3]
+            
         end
     end
+
+    
     redShear = getWindShearT(set.shear_mode, windshear, tmp_RPs_r)
     buffers.T_red_arr[end] = dot(RPw, redShear)
+    #println(buffers.T_red_arr')
+    
 
     T_red = prod(buffers.T_red_arr)
     T_Ueff_scalar = states_wf[end, 1] * T_red
@@ -697,7 +705,6 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
                    windshear::Union{Matrix, WindShear})           
     # Prepare rotor points (RPl, RPw)
     RPl, RPw = prepare_rotor_points!(buffers, location_t, states_t, d_rotor, floris)
-
     nRP = size(RPl, 1)
     nT = length(d_rotor)
 
@@ -731,8 +738,11 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
 
         end
         # Final wind shear computation
+        
         compute_final_wind_shear_veer!(buffers, RPl, RPw, location_t, set, windshear, 
-                                views[15], states_wf)  # views[15] is tmp_RPs_r
+                                views[15], states_wf)  # views[15] is tmp_RPs_r, any initialized array of length nRP works,
+                                                       # we are reusing the allocated memory spot
+
 
 
 
