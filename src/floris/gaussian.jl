@@ -242,8 +242,9 @@ function centerline!(deflection::AbstractMatrix,
 
     # Compute deflection into provided matrix
     getVars!(sig_y, sig_z, x_0, deflection, pc_y, pc_z, RPs, Ct, yaw, TI, TI0, floris, d_rotor)
-    #return deflection
+    
     return deflection
+    #return zeros(size(deflection))
     
 end
 
