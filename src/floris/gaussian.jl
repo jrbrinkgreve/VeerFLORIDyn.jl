@@ -501,7 +501,9 @@ function getPower(wf::WindFarm, m::AbstractMatrix, floris::Floris, con::Con)
     
     Cp = 4a .* (1 .- a).^2
     ueff = m[:, 3]
-    if floris.veer_gradient != 0.0 
+    
+
+    if floris.veer_gradient != 0.0
         
         if con.tanh_yaw   
             P = 0.5 * floris.airDen * (wf.D / 2).^2 * π .* Cp' .* ueff.^3 .* floris.eta .* 
