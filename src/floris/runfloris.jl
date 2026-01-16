@@ -509,13 +509,6 @@ function compute_wake_effects!(buffers, views, iT::Int, RPl, RPw, location_t,
     
     buffers.T_red_arr[iT] = 1.0 - dot(RPw, tmp_RPs_r)
 
-
-    
-    #can just add the t_red_arr here (but then in the veer one)! we know the reduction factors
-    #from the wake model
-    #buffers.T_red_arr[iT] = 1 - dot(RPw, du ./ u) or something
-
-    #@infiltrate
     # Added TI
     T_addedTI_tmp = floris.k_fa * (
         a_val^floris.k_fb *
@@ -534,6 +527,7 @@ function compute_wake_effects!(buffers, views, iT::Int, RPl, RPw, location_t,
         z_term = (cw_z[i] - sin(phi_cw[i]) * pc_z_val * 0.5) / (TIexp * sig_z_val)
         exp_y[i] = exp(-0.5 * y_term^2)
         exp_z[i] = exp(-0.5 * z_term^2)
+ 
     end
 
     # Avoid allocating a temporary from (exp_y .* exp_z) by manual accumulation
@@ -541,6 +535,7 @@ function compute_wake_effects!(buffers, views, iT::Int, RPl, RPw, location_t,
     @inbounds for i in 1:nRP
         acc = muladd(RPw[i], exp_y[i] * exp_z[i], acc)
     end
+    @infiltrate
     buffers.T_aTI_arr[iT] = T_addedTI_tmp * acc
     nothing
 end
@@ -578,7 +573,6 @@ function compute_final_wind_shear!(buffers, RPl, RPw, location_t, set::Settings,
                                   windshear, tmp_RPs_r, states_wf)
     nRP = size(RPl, 1)
    
-    
     # Compute z for wind shear:
     # - Power law expects normalized height (clamped positive)
     # - Interpolation expects absolute height (meters)

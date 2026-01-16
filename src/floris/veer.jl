@@ -246,7 +246,7 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
     mean_x /= nRP
 
    
-   
+    #@infiltrate
     #get Mohammadi model parameters / velocity field writting inplace to du / u
     get_velocity_veer!(  
         tmp_RPs,
@@ -256,19 +256,43 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
         Ct, TI, TI0, floris, d_rotor[iT],  #get rotor diameter of turbine causing the wake
         z_hub, set, windshear, u_hub )  #get hub velocity of turbine causing the wake
     
-
-
-    
-    
-    
     buffers.T_red_arr[iT] = 1.0 - dot(RPw, du)
+   
     
+    
+    #to calculate aTI:
+    T_addedTI_tmp = floris.k_fa * (
+        a_val^floris.k_fb *
+        TI0^floris.k_fc *
+        (mean_x / d_rotor[iT])^floris.k_fd
+    )
+    
+    #calculating wake overlap
+    # as du = c * gauss,
+    #we use the mean of (du ./ c) to get an expression for the gaussian wake overlap
+
+
+    acc = 0.0
+    @inbounds for i in 1:nRP
+        acc = muladd(RPw[i], du[i] ./ c[i]  , acc)   
+    end                                                 
+    #@infiltrate
+    
+    buffers.T_aTI_arr[iT] = T_addedTI_tmp * acc
+    #buffers.T_aTI_arr[iT] = 0.0
     
 
-    #to be added later
+    
+    #look at 'wake overlap' by summing over du values. if du is large, 
+    #if 1-du is small, 
+
+    
+
+
+
     
     buffers.T_weight[iT] = 1.0
-    buffers.T_aTI_arr[iT] = 0.0
+    
 
 
     
@@ -309,11 +333,12 @@ function get_velocity_veer!(rps_coords,
 
 
     
-    for i in 1:nRP                #use inbounds for performance
+    @inbounds for i in 1:nRP                #use inbounds for performance
         #do the wake model evaluation per RP here:
         # determining veered wind directon at RP height
         alpha[i] = deg2rad(floris.veer_gradient * (rps_coords[i,3] - z_hub))  #linear veer profile
-        gamma[i] = deg2rad(beta) + alpha[i]
+        gamma[i] = -beta - alpha[i]
+        #note: -sign for direction convention
         
         #eq 3    
         a_star[i] = (1.0  + sqrt(1.0 - CT * cos(gamma[i])^2)    ) / (2.0 * sqrt(1.0 - CT * cos(gamma[i])^2))
@@ -400,13 +425,14 @@ function get_velocity_veer!(rps_coords,
         du[i] = c[i] * exp(- ((coords_veered[i,2] - y_c[i])^2 + (coords_veered[i,3] - z_hub)^2 )  / (2.0*sigma[i]^2)   )
         #note that this du is a factor, and is relative
         u[i] = u_in_z[i]* (1.0 - du[i])
+        
 
         
         
     end
-    
 
 end
+
 
 
 #----------------------------------------------------------------------------------------------

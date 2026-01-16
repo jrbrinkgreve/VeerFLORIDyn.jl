@@ -638,7 +638,7 @@ function setUpTmpWFAndRun!(ub::UnifiedBuffers, wf::WindFarm, set::Settings, flor
 
         T_red = prod(T_red_arr)
         wf.red_arr[iT, vcat(wf.dep[iT], iT)] = T_red_arr
-        T_addedTI = sqrt(sum(T_aTI_arr .^ 2))
+        T_addedTI = sqrt(sum(T_aTI_arr.^2))
         wf.Weight[iT] = T_weight
 
         # Prefer T_Ueff from buffers when available; else compute fallback for special cases
