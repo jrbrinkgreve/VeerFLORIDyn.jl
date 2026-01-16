@@ -45,15 +45,13 @@ https://wes.copernicus.org/articles/10/2705/2025/
 
 
 
-
-
-- Next time test aTI code
-    tell marcus about how I implemented it, overlap of wake via du/c instead of sigma's
-
+- overhaul veer modelling:
+    sim.floris    struct field
 
 
 
 
+also: Cp vs tsr overhaul
 
 
 

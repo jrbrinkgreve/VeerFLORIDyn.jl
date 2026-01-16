@@ -4,26 +4,46 @@
 #=
 List of functions in this file:
 
-- calcCT function already  in gaussian.jl, not defined here due to double method defining errors
-- getVars! function for getting veer related variables: added dispatch method with veer_enabled == 1
-- centerline! function: TBD what to do with this
-- mutable struct States?
-- constructor for States?
-- init_states: probably just copy this from gaussian.jl
-- getPower: function to get power, with veer 
-- getUadv: function to get Uadv, with veer
+    handle_single_turbine_veer!
+    setup_computation_buffers_veer!
+    compute_wake_effects_veer!
+    get_velocity_veer!
+    compute_final_wind_shear_veer!
+
+
+
 
 =#
 
 
 #----------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------
+"""
+function handle_single_turbine_veer!
 
+    Handle the special case of a single turbine with veer.
 
+    This function computes the total velocity reduction factor `T_red` for a single turbine
+    using the veer-adjusted wind shear profile. It avoids unnecessary allocations by utilizing
+    pre-allocated buffers.
 
+    # Arguments
+    - `buffers`: A `FLORISBuffers` instance containing pre-allocated arrays.
+    - `RPl`: An `nRP x 3` array of rotor point locations (absolute coordinates).
+    - `RPw`: An `nRP` array of rotor point weights.
+    - `location_t`: An `nT x 3` array of turbine locations.
+    - `set`: A `Settings` instance containing simulation settings.
+    - `windshear`: A wind shear profile used for velocity calculations.
+    - `d_rotor`: An array of rotor diameters for each turbine.
+
+    # Returns
+    - Nothing. The result is stored in the buffers.
+
+"""
 
 function handle_single_turbine_veer!(buffers, RPl, RPw, location_t, set, windshear, d_rotor)
     # Avoid allocating RPl[:,3] and the broadcasted division by using a buffer
+    
 
     nRP_local = size(RPl, 1)
     if length(buffers.tmp_RPs_r) < nRP_local
@@ -43,7 +63,7 @@ function handle_single_turbine_veer!(buffers, RPl, RPw, location_t, set, windshe
         end
     end
     z_view = @view buffers.tmp_RPs_r[1:nRP_local]
-    redShear = getWindShearT(set.shear_mode, windshear, z_view)  #normalized!
+    redShear = getWindShearT(set.shear_mode, windshear, z_view)  #normalized Z!
     
     
     
@@ -68,7 +88,24 @@ end
 #----------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------
 
+"""
+function setup_computation_buffers_veer!(buffers, nRP::Int, nT::Int)
+    
+    Setup and return views of pre-allocated buffers for veer wake computations.
 
+    This function prepares views of the pre-allocated arrays in `buffers` to match
+    the current number of rotor points (`nRP`) and turbines (`nT`). It also initializes
+    output arrays for velocity reduction factors.
+
+    # Arguments
+    - `buffers`: A `FLORISBuffers` instance containing pre-allocated arrays.
+    - `nRP`: The number of rotor points.
+    - `nT`: The number of turbines.
+
+    # Returns
+    - A tuple of views corresponding to the required buffers for veer computations.
+
+"""
 
 
 function setup_computation_buffers_veer!(buffers, nRP::Int, nT::Int)
@@ -165,6 +202,41 @@ end
 #----------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------
 
+"""
+function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, states_wf, 
+                                states_t, d_rotor, floris, nRP, set, windshear)
+
+inputs:
+- buffers: FLORISBuffers instance with pre-allocated arrays
+- views: tuple of views into buffers for veer computations
+- iT: index of the current turbine being processed
+- RPl: nRP x 3 array of rotor point locations (absolute coordinates)
+- RPw: nRP array of rotor point weights
+- location_t: nT x 3 array of turbine locations
+- states_wf: wind field states
+- states_t: turbine states
+- d_rotor: array of rotor diameters for each turbine
+- floris: Floris instance with model parameters 
+- nRP: number of rotor points
+- set: Settings instance with simulation settings
+- windshear: wind shear profile used for velocity calculations
+
+outputs:
+- Returns nothing
+- modifies buffers in place to store results
+- buffers.T_red_arr[iT]: total velocity reduction factor from turbine iT      
+- buffers.T_aTI_arr[iT]: added turbulence intensity contribution from turbine iT
+- buffers.T_weight[iT]: wake overlap weight from turbine iT
+
+
+
+              
+
+
+
+"""
+
+
 function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, states_wf, 
                                 states_t, d_rotor, floris, nRP, set, windshear)
 
@@ -210,7 +282,7 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
     
     # Apply rotation matrix manually to avoid allocation
     #rotation matrix is for aligning with yaw 
-    for i in 1:nRP
+    @inbounds for i in 1:nRP
         x = tmp_RPs[i, 1]
         y = tmp_RPs[i, 2]
         z = tmp_RPs[i, 3]
@@ -247,7 +319,7 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
 
    
     #@infiltrate
-    #get Mohammadi model parameters / velocity field writting inplace to du / u
+    #get Mohammadi model: (delta)velocity field writting inplace to du / u
     get_velocity_veer!(  
         tmp_RPs,
         alpha, yaw, gamma, a_star, xi_0_hat, coords_veered, shear_modifier, u_in_z,
@@ -279,31 +351,12 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
     #@infiltrate
     
     buffers.T_aTI_arr[iT] = T_addedTI_tmp * acc
-    #buffers.T_aTI_arr[iT] = 0.0
+    buffers.T_weight[iT] = acc
+    
+    #T_weight is approx the percentage of wake overlap
     
 
-    
-    #look at 'wake overlap' by summing over du values. if du is large, 
-    #if 1-du is small, 
-
-    
-
-
-
-    
-    buffers.T_weight[iT] = 1.0
-    
-
-
-    
-    
-
-
-
-
-
-
-
+    return nothing
 
 end
 
@@ -314,7 +367,49 @@ end
 #----------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------
 #Mohammadi wake model implementation
+"""
+The core implementation of the veer wake model by Mohammadi et al. (2022)
+link: https://doi.org/10.3390/en15239135
 
+
+
+function get_velocity_veer!(rps_coords,
+            alpha, beta, gamma, a_star, xi_0_hat, coords_veered, shear_modifier, u_in_z,
+            t_hat, sgn_t_hat, abs_t_hat, y_hat_c, y_c, theta, xi_0, xi_hat, chi, a, c1, c2, c3, 
+            c4, c5, c6, c7, xi, sigma, sigma_hat_squared, c, du, u, tmp,
+            CT, ti, ti0, floris::Floris, D, z_hub, set, windshear, u_hub)
+
+
+
+
+fields:
+        rps:coords: rotor point coordinates
+        alpha: veer modified angle at each RP height
+        beta: yaw angle
+        gamma: combined veer and yaw angle at each RP height
+
+        a_star until sigma_hat_squared: various intermediate variables for veer model,
+            passed as buffer for memory/performance reasons
+
+        c: c = c(x) coefficient for velocity deficit at each RP
+        du: du = du(x,y,z) output array for velocity deficit at each RP
+        u: u = u(x,y,z) output array for velocity at each RP
+
+        tmp: temporary buffer for when any number just needs to be stored temporarily
+        CT: thrust coefficient of the turbine causing the wake
+        ti/ti0: turbulence intensity parameters
+        floris: Floris instance with model parameters
+        D: rotor diameter of the turbine causing the wake
+        z_hub: hub height of the turbine causing the wake
+        set: Settings instance with simulation settings
+        windshear: wind shear profile used for velocity calculations
+        u_hub: hub velocity of the turbine causing the wake
+
+outputs:
+        Returns nothing
+        modifies c, du and u in place to store results
+
+"""
 
 function get_velocity_veer!(rps_coords,
             alpha, beta, gamma, a_star, xi_0_hat, coords_veered, shear_modifier, u_in_z,
@@ -352,11 +447,9 @@ function get_velocity_veer!(rps_coords,
         coords_veered[i,3] = rps_coords[i,3] 
 
         #compute shear modifier at RP height
-        shear_modifier[i] = 1.0    #note, shear is applied later!!!! #getWindShearT(set.shear_mode, windshear, coords_veered[i,3]/z_hub)
-        u_in_z[i] = u_hub * shear_modifier[i]   #note: check whether this shear modifier is correct
+        shear_modifier[i] = 1.0    #note, shear is applied later! #getWindShearT(set.shear_mode, windshear, coords_veered[i,3]/z_hub)
+        u_in_z[i] = u_hub * shear_modifier[i]   
         
-
-        #AAAAA      CONTINUE DEVELOPMENT FROM HERE: ADD USTAR TO FLORIS PARAMS STRUCT
     
         t_hat[i] = (
             -1.44 * u_in_z[i]/ floris.u_star * R / xi_0_hat[i] * CT  
@@ -426,8 +519,6 @@ function get_velocity_veer!(rps_coords,
         #note that this du is a factor, and is relative
         u[i] = u_in_z[i]* (1.0 - du[i])
         
-
-        
         
     end
 
@@ -438,7 +529,31 @@ end
 #----------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------
 #wake superposition with veer
+"""
 
+function compute_final_wind_shear_veer!(buffers, RPl, RPw, location_t, set::Settings, 
+                                  windshear, tmp_RPs_r, states_wf)
+
+inputs:
+- buffers: FLORISBuffers instance with pre-allocated arrays
+- RPl: nRP x 3 array of rotor point locations (absolute coordinates)
+- RPw: nRP array of rotor point weights
+- location_t: nT x 3 array of turbine locations
+- set: Settings instance with simulation settings
+- windshear: wind shear profile used for velocity calculations
+- tmp_RPs_r: buffered array for temporary storage of RP z-coordinates
+- states_wf: wind field states
+
+outputs:
+Returns nothing
+- modifies buffers in place to store results
+- buffers.T_red_arr[end]: total velocity reduction factor from wind shear      
+- buffers.T_Ueff[1]: effective wind speed at the rotor after wind shear effects
+
+
+
+
+"""
 
 
 function compute_final_wind_shear_veer!(buffers, RPl, RPw, location_t, set::Settings, 
@@ -465,10 +580,7 @@ function compute_final_wind_shear_veer!(buffers, RPl, RPw, location_t, set::Sett
     redShear = getWindShearT(set.shear_mode, windshear, tmp_RPs_r)
     buffers.T_red_arr[end] = dot(RPw, redShear)
 
-
     T_red = prod(buffers.T_red_arr)
-    #println(buffers.T_red_arr')
-    
     T_Ueff_scalar = states_wf[end, 1] * T_red
     
     

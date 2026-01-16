@@ -26,6 +26,7 @@ wind:
   # - RW_with_mean             random walk with mean
   input_dir: Constant #Interpolation
   dir_fixed: 180.0 #270.0 # fixed wind direction for 'Constant' method [°]
+
   # Ambient Turbulence Intensity Input
   # - Interpolation
   # - InterpTurbine (Interpolation per turbine)
@@ -75,8 +76,8 @@ sim:
   #NOTE: CHANGE THIS to 'veer' for code branch
   floris: gaussian  #change into 'veer' later
   # start & end time of the simulation and the time resolution. 
-  start_time: 20000       #20000         # [s]
-  end_time:   21200.0   #21200         # [s]
+  start_time: 0.0       #20000         # [s]
+  end_time:   120.0   #21200         # [s]
   time_step: 4   # [s]
 
   # The discretization method, 'sunflower' or 'isocell'. The latter provides a regular grid 
@@ -148,14 +149,14 @@ floris:
   k_fb: 0.8325
   k_fc: 0.0325
   k_fd: -0.32
-  eta: 1
+  eta: 1.0
   p_p: 2.2
   airDen: 1.225 # kg/m^3 (SOWFA)
-  TIexp: 3 # TI crosswind distribution is modelled as a factor of sigma_y and sigma_z.
+  TIexp: 3.0 # TI crosswind distribution is modelled as a factor of sigma_y and sigma_z.
            # This is in contrast to previous literature which assumed a fixed box area and the
            # turbines therein as source of higher TI.
   #veer params:           
-  veer_gradient: 0.0
+  veer_gradient: 0.05
   angle_tol: 1e-10
   u_star: 0.4
   k: 0.6
