@@ -77,7 +77,7 @@ sim:
   floris: gaussian  #change into 'veer' later
   # start & end time of the simulation and the time resolution. 
   start_time: 0.0       #20000         # [s]
-  end_time:   120.0   #21200         # [s]
+  end_time:   86400.0   #21200         # [s]
   time_step: 4   # [s]
 
   # The discretization method, 'sunflower' or 'isocell'. The latter provides a regular grid 
@@ -86,7 +86,7 @@ sim:
   # the nearest possible number (3, 12, 27, 48, 75, 108, 147, ...).  
   # Sunflower distributes based on an outgoing spiral, the number of cells can be freely chosen.
   rotor_discret: isocell
-  rotor_points: 50 # number of points for the discretization of the rotor disk
+  rotor_points: 50 # number of points for the discretization of the rotor disk for sunflower
   
   # Dynamic settings
   dyn:
@@ -156,7 +156,7 @@ floris:
            # This is in contrast to previous literature which assumed a fixed box area and the
            # turbines therein as source of higher TI.
   #veer params:           
-  veer_gradient: 0.05
+  veer_gradient: 0.00
   angle_tol: 1e-10
   u_star: 0.4
   k: 0.6

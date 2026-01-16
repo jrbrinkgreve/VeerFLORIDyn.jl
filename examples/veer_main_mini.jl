@@ -41,7 +41,7 @@ wf, wind, sim, con, floris = prepareSimulation(set, wind, con, floridyn, floris,
 wf = initSimulation(wf, sim)
 toc()
 
-vis.online = true
+vis.online = false #false
 # Matlab: 0.43s for 9T on desktop
 @time wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 @time Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
