@@ -513,7 +513,7 @@ function getPower(wf::WindFarm, m::AbstractMatrix, floris::Floris, con::Con)
         @inbounds for iT in 1:wf.nT
             area_hub = pi * (wf.D[iT] / 2.0)^2 * cos(yaw[iT])^floris.p_p
             # Second-order correction for veer
-            correction = 1.0 - (floris.p_p * deg2rad(floris.veer_gradient)^2 * (wf.D[iT] / 2.0)^2 / 8.0) * (1.0 + (floris.p_p - 1.0) * tan(yaw[iT])^2)
+            correction = 1.0 - (floris.p_p * deg2rad(floris.veer_gradient)^2 * (wf.D[iT] / 2.0)^2 / 8.0) * (1.0 - (floris.p_p - 1.0) * tan(yaw[iT])^2)
             eff_areas[iT] = area_hub * correction
         end
         

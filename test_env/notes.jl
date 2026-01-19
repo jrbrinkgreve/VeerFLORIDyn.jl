@@ -47,13 +47,15 @@ https://wes.copernicus.org/articles/10/2705/2025/
 
 - overhaul veer modelling:
     sim.floris    struct field
+    also: Cp vs tsr overhaul
+
+- Report
+    check cos^2(...) instead of cos(..)^2 in report
+    list of parameters in methods section
 
 
-
-
-also: Cp vs tsr overhaul
-
-
+- also check sign in code of veer implementation
+- convention of yaw in gaussian: power calculation code whether 
 
 =#
 

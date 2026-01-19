@@ -25,7 +25,7 @@ wind:
   # - InterpTurbine_wErrorCov
   # - RW_with_mean             random walk with mean
   input_dir: Constant #Interpolation
-  dir_fixed: 180.0 #270.0 # fixed wind direction for 'Constant' method [°]
+  dir_fixed: 160.0 #270.0 # fixed wind direction for 'Constant' method [°]
 
   # Ambient Turbulence Intensity Input
   # - Interpolation
@@ -77,7 +77,7 @@ sim:
   floris: gaussian  #change into 'veer' later
   # start & end time of the simulation and the time resolution. 
   start_time: 0.0       #20000         # [s]
-  end_time:   86400.0   #21200         # [s]
+  end_time:   1200.0 #86400.0   #21200         # [s]
   time_step: 4   # [s]
 
   # The discretization method, 'sunflower' or 'isocell'. The latter provides a regular grid 
@@ -116,7 +116,7 @@ sim:
       # Spacial-Time-Averaged weight settings for the wind direction
       iter_sigma_dw: 512
       iter_sigma_cw: 512
-      iter_sigma_time: 50
+      iter_sigma_time: 502
   # Choose if simulation should be initialized, an initialized state should be loaded 
   # or should be started without initialization.
   init: noinit # 'noinit' or 'load' (load requires initT.jld2)
@@ -133,7 +133,7 @@ con:
   #                 from a SOWFA simulation. 
   # - Constant      reads a single orientation and applies it to all turbines at all times.
   yaw: Constant #SOWFA
-  yaw_fixed: 200.0 # constant yaw angle for 'Constant' method [°]
+  yaw_fixed: 180.0 # constant yaw angle for 'Constant' method [°]
   # induction control method
   # - 'Constant'    sets the axial induction factor to a constant value of 1/3 for all turbines at all times.
   # - 'TGC'         uses the con.induction_data matrix to set the axial induction factor for each turbine
@@ -156,7 +156,7 @@ floris:
            # This is in contrast to previous literature which assumed a fixed box area and the
            # turbines therein as source of higher TI.
   #veer params:           
-  veer_gradient: 0.00
+  veer_gradient: 0.05
   angle_tol: 1e-10
   u_star: 0.4
   k: 0.6
