@@ -217,6 +217,8 @@ See also: [`getVars!`](@ref)
 function centerline!(deflection::AbstractMatrix,
                      states_op, states_t, states_wf, floris::Floris, d_rotor)
     n = size(states_op, 1)
+    
+
     # Prepare minimal RPs matrix: only downstream distance (OPdw) is needed (col 1)
     RPs = Matrix{Float64}(undef, n, 3)
     @inbounds begin
@@ -376,6 +378,7 @@ The function performs the following initialization steps for each turbine:
 """
 function init_states(set::Settings, wf::WindFarm, wind::Wind, init_turb, floris::Floris, sim::Sim)
     # Unpack state arrays and parameters
+    
     states_op   = copy(wf.States_OP)
     states_t    = copy(wf.States_T)
     states_wf   = copy(wf.States_WF)
@@ -427,6 +430,7 @@ function init_states(set::Settings, wf::WindFarm, wind::Wind, init_turb, floris:
         # Crosswind position (in-place)
         centerline!(@view(states_op[rangeOPs, 5:6]), states_op[rangeOPs, :], states_t[rangeOPs, :],
                           states_wf[rangeOPs, :], floris, wf.D[iT])
+        
         
         
         # Convert wind dir in fitting radians

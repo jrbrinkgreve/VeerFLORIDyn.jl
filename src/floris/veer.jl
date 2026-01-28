@@ -433,6 +433,7 @@ function get_velocity_veer!(rps_coords,
         # determining veered wind directon at RP height
         alpha[i] = deg2rad(floris.veer_gradient * (rps_coords[i,3] - z_hub))  #linear veer profile
         gamma[i] = -beta - alpha[i]
+
         #note: -sign for direction convention
         
         #eq 3    
@@ -442,8 +443,8 @@ function get_velocity_veer!(rps_coords,
         
         
         #rotate RP coordinates to veered frame at each height
-        coords_veered[i,1] = rps_coords[i,1] * cos(alpha[i]) + rps_coords[i,2] * sin(alpha[i])
-        coords_veered[i,2] = rps_coords[i,1] * -sin(alpha[i]) + rps_coords[i,2] * cos(alpha[i])
+        coords_veered[i,1] = rps_coords[i,1] * cos(alpha[i]) + rps_coords[i,2] * -sin(alpha[i])
+        coords_veered[i,2] = rps_coords[i,1] * +sin(alpha[i]) + rps_coords[i,2] * cos(alpha[i])
         coords_veered[i,3] = rps_coords[i,3] 
 
         #compute shear modifier at RP height

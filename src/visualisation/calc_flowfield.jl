@@ -405,7 +405,8 @@ function calcFlowField(set::Settings, wf::WindFarm, wind::Wind, floris::Floris;
     Y = repeat(collect(yAx), 1, length(xAx))
 
     # Get hub height from first turbine
-    zh = wf.posNac[1, 3]
+    zh = wf.posNac[1, 3]  #AAAAAAA modify this to plot at different heights to look at veer effects
+    #@infiltrate
     
     # Get data
     if set.threading
