@@ -6,7 +6,7 @@ include("../examples/veer_main_mini.jl")
 
 
 
-function create_rosenbrock_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
+function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
     # Create task-local copies of mutable state objects
     # These get deep-copied once per task, ensuring no shared state
     tlv = TaskLocalValue{NamedTuple}() do
@@ -23,7 +23,7 @@ function create_rosenbrock_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con,
         )
     end
     
-    return function rosenbrock(x)
+    return function cost(x)
         # Get this task's private copies of all mutable state
         state = tlv[]
 
@@ -58,7 +58,7 @@ floridyn = floridyn # your floridyn state
 floris = floris # your floris state
 
 # Create fitness function (captures all state as closures)
-fit_func = create_rosenbrock_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
+fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 
 x0 = [200.0]
 
