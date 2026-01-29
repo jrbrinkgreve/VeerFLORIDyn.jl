@@ -39,7 +39,7 @@ export Direction_All, Direction_Influence, Direction_None
 export Velocity_Influence, Velocity_None
 export TI_Influence, TI_None
 export IterateOPs_average, IterateOPs_basic, IterateOPs_buffer, IterateOPs_maximum, IterateOPs_weighted
-export Yaw_Constant, Yaw_InterpTurbine, Yaw_SOWFA
+export Yaw_Constant, Yaw_InterpTurbine, Yaw_SOWFA, Yaw_Optimisation
 export Induction_Constant, Induction_TGC
 
 export getWindDirT, getWindDirT_EnKF
@@ -166,6 +166,7 @@ end
 function str2type(name)
     typename = Symbol(name)
     t = getfield(FLORIDyn, typename)
+
     instance = t()
 end
 
@@ -478,6 +479,7 @@ for running FLORIDyn simulations with appropriate plotting callbacks.
 - Tuple (wf, md, mi): WindFarm, measurement data, and interaction matrix
 """
 function run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris; msr=VelReduction)
+
     if Threads.nthreads() > 1 && nprocs() > 1
         # Multi-threading mode: use remote plotting callback
         # The rmt_plot_flow_field function should be defined via remote_plotting.jl

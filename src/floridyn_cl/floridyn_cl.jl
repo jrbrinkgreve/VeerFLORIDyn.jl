@@ -833,6 +833,7 @@ function runFLORIDyn(plt, set::Settings, wf::WindFarm, wind::Wind, sim, con, vis
         ma[(it-1)*nT+1 : it*nT, 5] = wf.States_WF[wf.StartI, 1]
 
         # ========== Get Control settings ==========
+        #@infiltrate
         wf.States_T[wf.StartI, 2] = (
             wf.States_WF[wf.StartI, 2] .- getYaw(set.control_mode, con, (1:nT), sim_time)'
         )

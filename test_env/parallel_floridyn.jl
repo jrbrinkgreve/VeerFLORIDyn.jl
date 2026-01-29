@@ -52,7 +52,7 @@ fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 x0 = [185.0]
 
 opts = Evolutionary.Options(
-    iterations = 20,
+    iterations = 200,
     abstol = 1e-8,
     reltol = 1e-8,
     show_trace = true,
@@ -60,4 +60,4 @@ opts = Evolutionary.Options(
     parallelization = :thread #thread
 )
 
-result = Evolutionary.optimize(fit_func, x0, CMAES(), opts)
+result = Evolutionary.optimize(fit_func, x0, CMAES(mu = 50), opts)

@@ -37,6 +37,15 @@ This mode is specifically designed for integration with SOWFA simulation data.
 """
 struct Yaw_SOWFA <: ControllerModel end
 
+
+"""
+    Yaw_Optimisation <: ControllerModel
+
+    To allow the CMAES/ any other controller to do its job and pass its own yaw angles
+"""
+struct Yaw_Optimisation <: ControllerModel end
+
+
 abstract type InductionModel end
 
 """

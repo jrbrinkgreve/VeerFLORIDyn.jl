@@ -40,12 +40,12 @@ where `m` is the number of time steps and `n` is the number of turbines.
 # Examples
 ```julia
 # Create controller configuration with yaw data
-con = Con(yaw="SOWFA", yaw_data=[0.0  10.0  5.0;   # t=0s: T1=10°, T2=5°
+con = (yaw="SOWFA", yaw_data=[0.0  10.0  5.0;   # t=0s: T1=10°, T2=5°
                                  1.0  15.0  10.0;  # t=1s: T1=15°, T2=10°
                                  2.0  20.0  15.0]) # t=2s: T1=20°, T2=15°
 
 # Get yaw for turbine 1 at t=0.5s (interpolated)
-yaw1 = getYaw(Yaw_SOWFA(), con, 1, 0.5)  # Returns 12.5°
+yaw1 = getYaw(Yaw_SOWFA(), con, 1, 0.5)  # Returns 12.5°A
 
 # Get yaw for multiple turbines at t=1.5s
 yaws = getYaw(Yaw_SOWFA(), con, [1, 2], 1.5)  # Returns [17.5°, 12.5°]
@@ -61,6 +61,7 @@ yaw_oob = getYaw(Yaw_SOWFA(), con, 1, 5.0)  # Returns 20.0° with warning
 """
 function getYaw(::Yaw_SOWFA, con::Con, iT, t)  
     con_yaw_data = con.yaw_data
+
     if t < con_yaw_data[1, 1]
         @warn "The time $t is out of bounds, will use $(con_yaw_data[1, 1]) instead."
         t = con_yaw_data[1, 1]
@@ -95,6 +96,39 @@ function getYaw(::Yaw_SOWFA, con::Con, iT, t)
         error("Invalid type for iT. Should be Integer or Vector of Integers.")
     end
 end
+
+
+"""
+Yaw_optimisation version for directly returning values from the passed matrix. No interpolation is done
+    to get sparse control inputs modelled properly
+
+"""
+function getYaw(::Yaw_Optimisation, con::Con, iT, t)  
+    con_yaw_data = con.yaw_data
+    
+    time = con_yaw_data[:, 1]
+    yaw_data = con_yaw_data[:, 2:end]
+    
+    # Find exact index for time t (assuming t is always in time array)
+    idx = findfirst(==(t), time)
+
+    # Get yaw value(s) at time t
+    if isa(iT, Integer)
+        return yaw_data[idx, iT]
+    elseif isa(iT, AbstractVector{<:Integer})
+        return [yaw_data[idx, i] for i in iT]
+    else
+        error("Invalid type for iT. Should be Integer or Vector of Integers.")
+    end
+end
+
+
+
+
+
+
+
+
 
 """
     getYaw(::Yaw_Constant, con::Con, iT, t) -> Float64 or Vector{Float64}

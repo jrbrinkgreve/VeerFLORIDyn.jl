@@ -370,6 +370,8 @@ function prepareSimulation(set::Settings, wind::Wind, con::Con, floridyn::FloriD
     elseif yaw_method == "SOWFA"
         nacelleYaw = importSOWFAFile(joinpath(vel_file_dir, "SOWFA_nacelleYaw.csv"))
         con.yaw_data = condenseSOWFAYaw([nacelleYaw[1:wf.nT:end, 2] reshape(nacelleYaw[:,3],wf.nT, :)'])
+    elseif yaw_method == "Optimisation"
+        #note: we pass the control matrix directly via con.yaw_data
     else
         error("Unknown yaw method: $yaw_method")
     end

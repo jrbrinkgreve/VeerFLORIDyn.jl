@@ -3,6 +3,7 @@
 
 # Testcase for bug https://github.com/ufechner7/FLORIDyn.jl/issues/35
 using FLORIDyn, TerminalPager, MAT, ControlPlots, DistributedNext, LinearAlgebra, Statistics, DataFrames
+using Infiltrator
 
 if !isdefined(Main, :TestHelpers)
     include("../test/test_helpers.jl")
@@ -33,6 +34,7 @@ include("remote_plotting.jl")
 # get the settings for the wind field, simulator and controller
 wind, sim, con, floris, floridyn, ta, tp = setup(settings_file)
 
+@infiltrate
 # create settings struct
 set = Settings(wind, sim, con, Threads.nthreads() > 1, Threads.nthreads() > 1)
 
@@ -44,6 +46,7 @@ wf = initSimulation(wf, sim)
 
 vis.online = false
 @time wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
+
 
 turbines_wf = wf.turbines
 
