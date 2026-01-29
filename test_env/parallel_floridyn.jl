@@ -25,9 +25,9 @@ function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, flori
     
     return function cost(x)
         # Get this task's private copies of all mutable state
-        state = tlv[]
-
         con.yaw_fixed = x[1]
+
+        state = tlv[]
         # Call runFLORIDyn with task-local copies
         # So each thread modifies its own copies, never shared
         plt_local  = state.plt
@@ -42,25 +42,14 @@ function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, flori
         wf, md, mi = run_floridyn(plt_local, set_local, wf_local, wind_local, sim_local, con, vis, floridyn_local, floris_local)
         return -sum(md.PowerGen)
         # Compute fitness from your simulation results
-        #return (1.0 - x[1])^2 + 100.0 * (x[2] - x[1]^2)^2
+        
     end
 end
-
-# Initialize base objects ONCE before parallelization
-plt = plt # your plot object
-set = set # your Settings
-wf = wf # your WindFarm
-wind = wind # your Wind
-sim = sim # your simulation state
-con = con # your control
-vis = vis # your visualization
-floridyn = floridyn # your floridyn state
-floris = floris # your floris state
 
 # Create fitness function (captures all state as closures)
 fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 
-x0 = [200.0]
+x0 = [185.0]
 
 opts = Evolutionary.Options(
     iterations = 20,
@@ -68,7 +57,7 @@ opts = Evolutionary.Options(
     reltol = 1e-8,
     show_trace = true,
     store_trace = true,
-    parallelization = :thread
+    parallelization = :thread #thread
 )
 
 result = Evolutionary.optimize(fit_func, x0, CMAES(), opts)
