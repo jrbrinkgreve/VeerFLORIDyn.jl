@@ -137,16 +137,8 @@ end
 
 """
 
-
-
 function construct_yaw_matrix(x, sim, wf)
-    yaws =  ones(sim.end_time - sim.start_time + 1)   * x'
-
-
-
-
-
-
+    yaws =  ones(sim.end_time - sim.start_time + 1)   * x'  #expands into a matrix
 
     return   [sim.start_time:sim.end_time    yaws]
 end
@@ -154,3 +146,9 @@ end
 
 
 result
+
+
+
+
+
+#Note: IPOP multiple initialisation to continue getting out of local minima
