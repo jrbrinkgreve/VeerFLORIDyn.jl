@@ -41,6 +41,43 @@ vis.online = false
 
 #------------------------------------------------------------------------------------------------------------
 
+#OPTIMISATION PART
+#create local copies of vaiables for multithreading
+
+
+# Create fitness function (captures all state as closures)
+fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
+
+x0 = 180.0 * ones(wf.nT)
+
+opts = Evolutionary.Options(
+    iterations = 100,
+    abstol = 1e-8,
+    reltol = 1e-8,
+    show_trace = true,
+    store_trace = true,
+    parallelization = :thread #thread
+)
+
+result = Evolutionary.optimize(fit_func, x0, CMAES()     , opts)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#------------------------------------------------------------------------------------------------------------
+#FUNCTIONS DEFINITIONS BELOW
+
 
 
 
@@ -63,9 +100,14 @@ function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, flori
     end
     
     return function cost(x)
-        # Get this task's private copies of all mutable state
-        con.yaw_data = con.yaw_data = [sim.start_time:sim.end_time        x[1] .*  ones(sim.end_time-sim.start_time+1, 9)]
+ 
 
+        con.yaw_data = [sim.start_time:sim.end_time        x[1] .*  ones(sim.end_time-sim.start_time+1, 9)]
+
+        #mapping from x to yaw matrix
+        #con.yaw_data = construct_yaw_matrix(x, sim, wf)    
+        
+        
         state = tlv[]
         # Call runFLORIDyn with task-local copies
         # So each thread modifies its own copies, never shared
@@ -85,22 +127,20 @@ function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, flori
     end
 end
 
-# Create fitness function (captures all state as closures)
-fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 
-x0 = [185.0]
 
-opts = Evolutionary.Options(
-    iterations = 10,
-    abstol = 1e-8,
-    reltol = 1e-8,
-    show_trace = true,
-    store_trace = true,
-    parallelization = :thread #thread
-)
 
-result = Evolutionary.optimize(fit_func, x0, CMAES(), opts)
+"""
+ function construct_yaw_matrix()
+        #construct yaw matrix for optimisation, reducing the number of free variables for the optimiser
 
+
+"""
+
+
+
+function construct_yaw_matrix(x, sim, wf)
+    yaws =  ones(sim.end_time - sim.start_time + 1)   * x'
 
 
 
@@ -108,4 +148,9 @@ result = Evolutionary.optimize(fit_func, x0, CMAES(), opts)
 
 
 
+    return   [sim.start_time:sim.end_time    yaws]
+end
 
+
+
+result
