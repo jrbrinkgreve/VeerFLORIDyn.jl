@@ -41,45 +41,6 @@ vis.online = false
 
 #------------------------------------------------------------------------------------------------------------
 
-#OPTIMISATION PART
-#create local copies of vaiables for multithreading
-
-
-# Create fitness function (captures all state as closures)
-fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
-
-x0 = 180.0 * ones(wf.nT)
-
-opts = Evolutionary.Options(
-    iterations = 100,
-    abstol = 1e-8,
-    reltol = 1e-8,
-    show_trace = true,
-    store_trace = true,
-    parallelization = :thread #thread
-)
-
-result = Evolutionary.optimize(fit_func, x0, CMAES()     , opts)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#------------------------------------------------------------------------------------------------------------
-#FUNCTIONS DEFINITIONS BELOW
-
-
-
 
 
 function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
@@ -102,7 +63,7 @@ function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, flori
     return function cost(x)
  
 
-        con.yaw_data = [sim.start_time:sim.end_time        x[1] .*  ones(sim.end_time-sim.start_time+1, 9)]
+        con.yaw_data = construct_yaw_matrix(x, sim, wf)
 
         #mapping from x to yaw matrix
         #con.yaw_data = construct_yaw_matrix(x, sim, wf)    
@@ -137,20 +98,68 @@ end
 
 """
 
-
-
 function construct_yaw_matrix(x, sim, wf)
-    yaws =  ones(sim.end_time - sim.start_time + 1)   * x'
-
-
-
-
-
-
+    yaws =  ones(sim.end_time - sim.start_time + 1)   * x' * 360  #expands into a matrix,
+                                                                    # x is in [0,1] range
 
     return   [sim.start_time:sim.end_time    yaws]
 end
 
 
 
-result
+
+
+#OPTIMISATION PART
+#create local copies of vaiables for multithreading
+
+
+# Create fitness function (captures all state as closures)
+fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
+
+
+
+
+
+x0 = 0.5 * 360 * ones(wf.nT)
+
+# ============================================================
+# IPOP-CMA-ES Setup
+# ============================================================
+
+set_lambda_multiplier = 5.0
+set_lambda0 = 2.0 * round((4 + 3 * log(wf.nT)) / 2.0)
+set_lambda = Int(set_lambda_multiplier * set_lambda0)
+set_mu = Int(round(set_lambda / 2))
+set_sigma0 = 0.25
+
+
+# 
+    # Options for this restart
+    opts = Evolutionary.Options(
+        iterations=iterations_per_restart,
+        abstol=1e-8,
+        reltol=1e-8,
+        show_trace=true,
+        store_trace=true,
+        parallelization=:thread
+    )
+    
+  
+    result = Evolutionary.optimize(
+        fit_func,
+        x0,
+        CMAES(
+            lambda=set_lambda,
+            mu=set_mu,
+            sigma0=set_sigma0
+        ),
+        opts
+    )
+    result
+
+
+
+#plotting the final result:
+
+
+

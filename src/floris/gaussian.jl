@@ -155,6 +155,8 @@ function getVars!(sig_y::AbstractVector{<:Real},
         Θ = 0.3 * yaw_i / cosyaw * (1 - sqrt(1 - Ct * cosyaw))
         delta_nfw = Θ * min(OPdw, x0_i)
         sqrt_ct = sqrt(Ct)
+        #breaks for extreme yaws
+        #@infiltrate cosyaw < 0
         delta_fw_1 = Θ / 14.7 * sqrt(cosyaw / (k_y_i * k_z_i * Ct)) * (2.9 + 1.3 * sqrt(1 - Ct) - Ct)
         term = 1.6 * sqrt((8 * sig_y_i * sig_z_i) / (d_rotor^2 * cosyaw))
         num = (1.6 + sqrt_ct) * (term - sqrt_ct)
@@ -497,6 +499,7 @@ f_yaw_constraints = [0.5 × tanh((γ_max - γ) × 50) + 0.5] ×
 - Axial induction factors are extracted from `wf.States_T[wf.StartI, 1]` for current time step
 - Yaw angles are converted from degrees to radians internally
 """
+
 function getPower(wf::WindFarm, m::AbstractMatrix, floris::Floris, con::Con)
     a   = wf.States_T[wf.StartI, 1]
     yaw = deg2rad.(wf.States_T[wf.StartI, 2])
@@ -515,8 +518,9 @@ function getPower(wf::WindFarm, m::AbstractMatrix, floris::Floris, con::Con)
         area_hub = 0.0
         
         @inbounds for iT in 1:wf.nT
-            area_hub = pi * (wf.D[iT] / 2.0)^2 * cos(yaw[iT])^floris.p_p
-            # Second-order correction for veer
+            
+            area_hub = pi * (wf.D[iT] / 2.0)^2 * (max.(0.0, cos.(yaw[iT])).^floris.p_p)
+            #second-order correction for veer
             correction = 1.0 - (floris.p_p * deg2rad(floris.veer_gradient)^2 * (wf.D[iT] / 2.0)^2 / 8.0) * (1.0 - (floris.p_p - 1.0) * tan(yaw[iT])^2)
             eff_areas[iT] = area_hub * correction
         end
@@ -524,12 +528,13 @@ function getPower(wf::WindFarm, m::AbstractMatrix, floris::Floris, con::Con)
         
         if con.tanh_yaw   
             P = 0.5 * floris.airDen * eff_areas .* Cp' .* ueff.^3 .* floris.eta .* 
-                (cos.(yaw).^floris.p_p)' .* 
+                (max.(0.0, cos.(yaw)).^floris.p_p)' .* 
                 (0.5 * tanh((-yaw + deg2rad.(con.yawRangeMax)) * 50) + 0.5) * 
                 (-0.5 * tanh((-yaw + deg2rad.(con.yawRangeMin)) * 50) + 0.5)
         else
             P = 0.5 * floris.airDen * eff_areas .* Cp' .* ueff.^3 .* floris.eta .* 
-                (cos.(yaw).^floris.p_p)'
+            (max.(0.0, cos.(yaw)).^floris.p_p)'
+
         end
         
         
@@ -537,12 +542,13 @@ function getPower(wf::WindFarm, m::AbstractMatrix, floris::Floris, con::Con)
 
         if con.tanh_yaw
             P = 0.5 * floris.airDen * (wf.D / 2).^2 * π .* Cp' .* ueff.^3 .* floris.eta .* 
-                (cos.(yaw).^floris.p_p)' .* 
+                (max.(0.0, cos.(yaw)).^floris.p_p)' .* 
                 (0.5 * tanh((-yaw + deg2rad.(con.yawRangeMax)) * 50) + 0.5) * 
                 (-0.5 * tanh((-yaw + deg2rad.(con.yawRangeMin)) * 50) + 0.5)
         else
             P = 0.5 * floris.airDen * (wf.D / 2).^2 * π .* Cp' .* ueff.^3 .* floris.eta .* 
-                (cos.(yaw).^floris.p_p)'
+            (max.(0.0, cos.(yaw)).^floris.p_p)'
+
         end
     end
 

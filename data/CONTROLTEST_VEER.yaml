@@ -156,7 +156,7 @@ floris:
            # This is in contrast to previous literature which assumed a fixed box area and the
            # turbines therein as source of higher TI.
   #veer params:           
-  veer_gradient: 0.10   #veer gradient in deg/m
+  veer_gradient: 0.0   #veer gradient in deg/m
   angle_tol: 1e-10   #angle tolerance for rotation rate chi of vortex sheet
   u_star: 0.4    #friction velocity 
   k: 0.6    #wake expansion coefficient

@@ -57,6 +57,14 @@ https://wes.copernicus.org/articles/10/2705/2025/
 - also check sign in code of veer implementation
 - convention of yaw in gaussian: power calculation code whether 
 
+
+
+
+
+- Optimisation crashing with large yaw angles: 
+    - Gaussian wake model centerline! not accepting large yaws, will crash
+
+
 =#
 
 
