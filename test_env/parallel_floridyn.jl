@@ -3,6 +3,7 @@ using Evolutionary
 using OhMyThreads: TaskLocalValue
 using Infiltrator
 using FLORIDyn, TerminalPager, DistributedNext 
+using AppleAccelerate
 if Threads.nthreads() == 1; using ControlPlots; end
 
 
@@ -129,7 +130,8 @@ end
 # Create fitness function (captures all state as closures)
 fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 
-x0 = 0.5 * ones(wf.nT)  #180 deg
+x0 = 182/360 * ones(wf.nT)  #180 deg
+#x0 = result.minimizer  #start from previous result
 
 
 #AAAAAAA note for next time: make these limits dependent on the dynamic wind field
@@ -150,11 +152,11 @@ opts = Evolutionary.Options(
 
 
 #hyperparams
-set_lambda_multiplier = 10.0
-set_lambda0 = 2.0 * round(   (4 + 3 * log(wf.nT)) / 2.0   )
+set_lambda_multiplier = 100
+set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT)) / 2.0   )
 set_lambda = Int(set_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
-set_sigma0 = 0.02   # set to 30% of the search range
+set_sigma0 = 0.04   # set to 30% of the search range
 
 
 
@@ -169,7 +171,55 @@ result =  Evolutionary.optimize(fit_func,
 
 
 
-result
+
+
+#=
+
+
+#hyperparams
+set_lambda_multiplier = 100
+set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT)) / 2.0   )
+set_lambda = Int(set_lambda_multiplier * set_lambda0)
+set_mu = Int(round(set_lambda / 2))
+set_sigma0 = 0.03   # set to 30% of the search range
+
+
+
+
+
+result.minimizer = 
+
+no veer:
+0.4948785267336715
+ 0.4976951720463655
+ 0.5166877606057314
+ 0.3991364900703976
+ 0.39732258773717166
+ 0.42303072369017003
+ 0.42829439616573045
+ 0.4354361542932078
+ 0.44010866886755406
+
+
+
+
+
+
+ 0.05 veer:
+ 0.5005065208003683
+ 0.5062194950628727
+ 0.4988809864260414
+ 0.42650958889740204
+ 0.41829690690115723
+ 0.4254264869849687
+ 0.4896144578065447
+ 0.49324825480570567
+ 0.4909384118734974
+
+
+
+
+=#
 
 
 

@@ -4,6 +4,7 @@ authors = ["Uwe Fechner <u.fechner-1@tudelft.nl>, Marcus Becker and contributors
 version = "0.5.6"
 
 [deps]
+AppleAccelerate = "13e28ba4-7ad8-5781-acae-3021b1ed3924"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 ChunkSplitters = "ae650224-84b6-46f8-82ea-d812ca08434e"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -35,6 +36,7 @@ StructMapping = "7c3b921d-20d6-4eba-ad57-605525e86ab2"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
 [compat]
+AppleAccelerate = "0.5.1"
 Aqua = "0.8.13"
 BenchmarkTools = "1.6.0"
 CSV = "0.10.15"

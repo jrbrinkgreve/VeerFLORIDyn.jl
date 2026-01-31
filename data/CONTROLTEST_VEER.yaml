@@ -25,7 +25,7 @@ wind:
   # - InterpTurbine_wErrorCov
   # - RW_with_mean             random walk with mean
   input_dir: Constant #Interpolation
-  dir_fixed: 180.0 #270.0 # fixed wind direction for 'Constant' method [°]
+  dir_fixed: 182.0 #270.0 # fixed wind direction for 'Constant' method [°]
 
   # Ambient Turbulence Intensity Input
   # - Interpolation
@@ -77,7 +77,7 @@ sim:
   floris: gaussian  #change into 'veer' later, that setting is now in settings struct
   # start & end time of the simulation and the time resolution. 
   start_time: 0.0       #20000         # [s]
-  end_time:   1200.0 # 1200.0 #86400.0   #21200         # [s]
+  end_time:   600.0 # 1200.0 #86400.0   #21200         # [s]
   time_step: 4.0   #4   # [s]   #note: why is runtime independent of time step size? seems odd...
 
   # The discretization method, 'sunflower' or 'isocell'. The latter provides a regular grid 
@@ -154,9 +154,15 @@ floris:
   airDen: 1.225 # kg/m^3 (SOWFA)
   TIexp: 3.0 # TI crosswind distribution is modelled as a factor of sigma_y and sigma_z.
            # This is in contrast to previous literature which assumed a fixed box area and the
-           # turbines therein as source of higher TI.
+           # turbines therein as source of higher TI
+           
+           
+           
   #veer params:           
   veer_gradient: 0.0   #veer gradient in deg/m
+
+
+  #mohammadi model params:
   angle_tol: 1e-10   #angle tolerance for rotation rate chi of vortex sheet
   u_star: 0.4    #friction velocity 
   k: 0.6    #wake expansion coefficient
