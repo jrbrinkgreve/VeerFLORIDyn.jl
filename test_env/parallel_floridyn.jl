@@ -3,7 +3,6 @@ using Evolutionary
 using OhMyThreads: TaskLocalValue
 using Infiltrator
 using FLORIDyn, TerminalPager, DistributedNext 
-using AppleAccelerate
 if Threads.nthreads() == 1; using ControlPlots; end
 
 
@@ -24,11 +23,11 @@ include("../examples/remote_plotting.jl")
 wind, sim, con, floris, floridyn, ta, tp = setup(settings_file)
 
 #manually set the initial yaw angles for the optimisation 
-con.yaw_data = [sim.start_time:sim.end_time        180 .*  ones(sim.end_time-sim.start_time+1, 9)]
+#con.yaw_data = [sim.start_time:sim.end_time        180 .*  ones(sim.end_time-sim.start_time+1, 9)]
 
 
 # create settings struct with automatic parallel/threading detection
-set = Settings(wind, sim, con, Threads.nthreads() > 1, Threads.nthreads() > 1)
+set = Settings(wind, sim, con, false, false)
 set.enable_veer = true
 set.control_mode = Yaw_Optimisation();
 
@@ -44,13 +43,11 @@ vis.online = false
 #------------------------------------------------------------------------------------------------------------
 
 
-function construct_yaw_matrix(x, sim, wf)
+function construct_yaw_matrix(x, sim, wf)   #wf to be used later
     yaws =  ones(sim.end_time - sim.start_time + 1)   * x' * 360  #expands into a matrix,
                                                                     # x is in [0,1] range
 
-
-
-    #ADD CHECK: yaws must not excees 50 degrees misalignment from wind
+    #ADD CHECK: yaws must not excees X degrees misalignment from wind to prevent crash
 
 
     return   [sim.start_time:sim.end_time    yaws]
@@ -69,6 +66,7 @@ function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, flori
     # These get deep-copied once per task, ensuring no shared state
     tlv = TaskLocalValue{NamedTuple}() do
         (
+            
             plt = deepcopy(plt),
             set = deepcopy(set),
             wf = deepcopy(wf),
@@ -130,7 +128,7 @@ end
 # Create fitness function (captures all state as closures)
 fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 
-x0 = 182/360 * ones(wf.nT)  #180 deg
+x0 = 182/360 * ones(wf.nT)  #182 deg
 #x0 = result.minimizer  #start from previous result
 
 
@@ -140,23 +138,24 @@ upper_bounds = 0.7 * ones(wf.nT)
 
 
 opts = Evolutionary.Options(
-    iterations = 50,
+    iterations = 100,
     abstol = 1e-8,
     reltol = 1e-8,
     show_trace = true,
+    show_every = 1,
     store_trace = true,
-    parallelization = :thread  #serial   #thread   
+    parallelization = :thread  #serial     #thread   
 )
 
 
 
 
 #hyperparams
-set_lambda_multiplier = 100
-set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT)) / 2.0   )
+set_lambda_multiplier = 150
+set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT)) / 2.0   )   #half the offspring 
 set_lambda = Int(set_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
-set_sigma0 = 0.04   # set to 30% of the search range
+set_sigma0 = 0.03   # set to 30% of the search range
 
 
 
@@ -224,9 +223,30 @@ no veer:
 
 
 
+#----------------------------------------------------------------------------------
+
+#PLOTTING
+
+# the settings for the wind field, simulator and controller
+wind, sim, con, floris, floridyn, ta, tp = setup(settings_file)
+
+#create settings struct
+#
+#set = Settings(wind, sim, con, Threads.nthreads() > 1, Threads.nthreads() > 1)
+set = Settings(wind, sim, con, false, false)
+
+set.enable_veer = true
+set.control_mode = Yaw_Optimisation();
 
 
-#plotting:
+wf, wind, sim, con, floris = prepareSimulation(set, wind, con, floridyn, floris, ta, sim);
+
+#run initial conditions
+wf = initSimulation(wf, sim);
+
+#disable online visualisation
+vis.online = false 
+
 con.yaw_data = construct_yaw_matrix(result.minimizer, sim, wf)
 wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
@@ -236,15 +256,25 @@ plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
 
 
 
-#AAAAAAA        note something is going on with the yaw angles and its breaking
-#the floridyn execution.
-#the idea is now to limit the yaw angles explored by the optimiser:
+
+
+
+
+
+#=
+AAAAAAA        
+#the idea is now to limit the yaw angles explored by the optimiser: limit them from max.
+#+/- 90 deg from current wind direction
 
 
 
 
 
 
+
+
+I think something is wrong with the multithreading is a bit off,
+as the globally best result is not returned while calling get_energy.jl
 
 
 
@@ -255,3 +285,4 @@ plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
 
 
 
+=#
