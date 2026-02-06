@@ -26,7 +26,7 @@ wf = initSimulation(wf, sim);
 #disable online visualisation
 vis.online = false 
 
-yaw_matrix = construct_yaw_matrix(result.minimizer, sim, wf)
+yaw_matrix = construct_yaw_matrix_dynamic(result.minimizer, sim, wf, set_num_yaw_changes)
 #plotting:
 con.yaw_data = yaw_matrix
 wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
@@ -34,7 +34,7 @@ wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 #plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
 
 
-println(sum(md.PowerGen))
+println(-sum(md.PowerGen))
 println()
 println("These numbers mismatching is not right!")
 println("-----------")
