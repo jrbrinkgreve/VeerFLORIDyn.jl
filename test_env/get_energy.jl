@@ -1,8 +1,8 @@
 println("-----------")
-println("Optimisation results:")
-println(result.minimizer)
-println()
-println(result.minimum)
+println("Optimally generated energy:")
+#println(result.minimizer)
+#println()
+#println(result.minimum)
 
 
 
@@ -33,7 +33,7 @@ wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 #plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
 
 
-println(-sum(md.PowerGen))
+println(sum(md.PowerGen * sim.time_step), " MJ")
 println()
-println("These numbers mismatching is not right!")
-println("-----------")
+println("Baseline / just wind direction alignment:")
+println(NaN)

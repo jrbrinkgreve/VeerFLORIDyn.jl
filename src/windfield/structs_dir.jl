@@ -67,3 +67,10 @@ struct Direction_InterpTurbine_wErrorCov <: DirModel end
 A marker struct used to indicate the use of a random walk direction model with a mean component.
 """
 struct Direction_RW_with_Mean <: DirModel end
+
+
+
+
+
+
+

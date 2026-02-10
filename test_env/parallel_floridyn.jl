@@ -195,7 +195,7 @@ end
 
 
 #number of yaw changes allowed
-set_num_yaw_changes = 2
+set_num_yaw_changes = 4
 
 
 # set cost function
@@ -204,13 +204,14 @@ fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 
 #init: yaws aligned with wind, equal time spacing
 equal_time_spacing = 0:1/set_num_yaw_changes:1
-yaw_guesses = repeat(182/360 * ones(wf.nT), set_num_yaw_changes)
+#include wind direction reading here
+yaw_guesses = repeat(180/360 * ones(wf.nT), set_num_yaw_changes)  #do some interpolation on 
+                                # wind direction here
 
 #set initial guess
 
-#x0 = vcat(equal_time_spacing[2:end-1], yaw_guesses)  #182 deg
-x0 = result.minimizer  #start from previous result
-
+x0 = vcat(equal_time_spacing[2:end-1], yaw_guesses)  #182 deg
+#x0 = result.minimizer  #start from previous result
 
 
 #AAAAAAA note for next time: make these limits dependent on the dynamic wind field
@@ -221,7 +222,7 @@ upper_bounds = vcat(ones(set_num_yaw_changes-1), 0.7 * ones(wf.nT))
 
 
 opts = Evolutionary.Options(
-    iterations = 30,
+    iterations = 20,
     abstol = 1e-8,
     reltol = 1e-8,
     show_trace = true,
@@ -233,16 +234,16 @@ opts = Evolutionary.Options(
 
 
 #hyperparams
-set_lambda_multiplier = 10
+set_lambda_multiplier = 5
 set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT)) * set_num_yaw_changes     / 2.0   )   #half the offspring 
 set_lambda = Int(set_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
 set_sigma0 =  0.03  # set to 30% of the search range
+#think about rescaling for time steps, this sigma is too small that part of the optim space
 
 
 
-
-result =  Evolutionary.optimize(fit_func,
+@time result =  Evolutionary.optimize(fit_func,
                                 BoxConstraints(lower_bounds, upper_bounds),
                                 x0, 
                                 CMAES(  lambda = set_lambda,

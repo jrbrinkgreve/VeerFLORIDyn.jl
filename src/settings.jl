@@ -988,7 +988,7 @@ println("Simulation duration: ", sim.end_time - sim.start_time, " seconds")
 - [`TurbineArray`](@ref): Turbine array layout and properties
 """
 function setup(filename)
-
+    
     data = YAML.load_file(filename)
     wind_data = data["wind"]
     wind = convertdict(Wind, wind_data)

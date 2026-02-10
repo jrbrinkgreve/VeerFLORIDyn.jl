@@ -1,6 +1,7 @@
 #run this file after running test_env/parallel_floridyn.jl
 #to see the results of the optimization in a dynamic simulation
 
+
 x = result.minimizer
 
 

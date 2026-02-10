@@ -521,7 +521,6 @@ function setUpTmpWFAndRun!(ub::UnifiedBuffers, wf::WindFarm, set::Settings, flor
         if hasfield(typeof(wf), :C_Dir)
             ub.iTWFState_buffer[2] = dot(wf.C_Dir[iT, :],wf.States_WF[:, 2])
         end
-
         if isempty(wf.dep[iT])
             # Single turbine case - use pre-allocated FLORIS buffers
             runFLORIS!(

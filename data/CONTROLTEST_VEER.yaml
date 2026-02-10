@@ -24,7 +24,7 @@ wind:
   # - InterpTurbine
   # - InterpTurbine_wErrorCov
   # - RW_with_mean             random walk with mean
-  input_dir: Constant #Interpolation
+  input_dir: Interpolation   #Constant
   dir_fixed: 182.0 #270.0 # fixed wind direction for 'Constant' method [°]
 
   # Ambient Turbulence Intensity Input
@@ -77,7 +77,7 @@ sim:
   floris: gaussian  #change into 'veer' later, that setting is now in settings struct
   # start & end time of the simulation and the time resolution. 
   start_time: 0.0       #20000         # [s]
-  end_time:   600.0 # 1200.0 #86400.0   #21200         # [s]
+  end_time:   1200.0 # 1200.0 #86400.0   #21200         # [s]
   time_step: 4   #4   # [s]   #note: why is runtime independent of time step size? seems odd...
 
   # The discretization method, 'sunflower' or 'isocell'. The latter provides a regular grid 
@@ -159,7 +159,7 @@ floris:
            
            
   #veer params:           
-  veer_gradient: 0.0   #veer gradient in deg/m
+  veer_gradient: 0.1   #veer gradient in deg/m
 
 
   #mohammadi model params:
