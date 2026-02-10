@@ -78,7 +78,7 @@ sim:
   # start & end time of the simulation and the time resolution. 
   start_time: 0.0       #20000         # [s]
   end_time:   600.0 # 1200.0 #86400.0   #21200         # [s]
-  time_step: 4.0   #4   # [s]   #note: why is runtime independent of time step size? seems odd...
+  time_step: 4   #4   # [s]   #note: why is runtime independent of time step size? seems odd...
 
   # The discretization method, 'sunflower' or 'isocell'. The latter provides a regular grid 
   # with equal sized cells. This is the favoured method! Downside is that the number of cells

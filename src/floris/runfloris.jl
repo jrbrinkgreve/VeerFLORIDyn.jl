@@ -535,7 +535,6 @@ function compute_wake_effects!(buffers, views, iT::Int, RPl, RPw, location_t,
     @inbounds for i in 1:nRP
         acc = muladd(RPw[i], exp_y[i] * exp_z[i], acc)
     end
-    @infiltrate
     buffers.T_aTI_arr[iT] = T_addedTI_tmp * acc
     nothing
 end

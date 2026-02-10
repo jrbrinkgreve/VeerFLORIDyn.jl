@@ -10,7 +10,6 @@ println(result.minimum)
 wind, sim, con, floris, floridyn, ta, tp = setup(settings_file)
 
 #create settings struct
-#
 #set = Settings(wind, sim, con, Threads.nthreads() > 1, Threads.nthreads() > 1)
 set = Settings(wind, sim, con, false, false)
 
