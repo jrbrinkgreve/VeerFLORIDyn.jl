@@ -24,6 +24,8 @@ include("../examples/remote_plotting.jl")
 toc()
 
 
+include("functions.jl")
+
 
 # get the settings for the wind field, simulator and controller
 wind, sim, con, floris, floridyn, ta, tp = setup(settings_file)
@@ -35,11 +37,15 @@ set.enable_veer = true
 set.control_mode = Yaw_Optimisation();
 
 
+#x = result.minimizer
+x = [0.21373316873633091, 0.44378063422246056, 0.7023648062459987, 0.4573683370513662, 0.4601851177924183, 0.4507046399089474, 0.46566185510452485, 0.4531273723060714, 0.4610269932875185, 0.46613455050160757, 0.4554462480368094, 0.452713564514293, 0.4827235011232917, 0.4821615182125857, 0.4848771894415457, 0.5236537541964522, 0.526160637454633, 0.5225495380018691, 0.5151531236216449, 0.5335264468455525, 0.5425715947754027, 0.5143313914133176, 0.5052526044185586, 0.5057800232249301, 0.45114173926364687, 0.4436416164448315, 0.44923584350401685, 0.439538611844072, 0.45654214304368423, 0.45698306035545705, 0.5450166198052656, 0.5491140172274278, 0.5316009145042399, 0.5430696066131033, 0.534386084535278, 0.533156082748412, 0.5405192556332268, 0.5399763491180628, 0.5379130949541088]
+
+
 
 wf, wind, sim, con, floris = prepareSimulation(set, wind, con, floridyn, floris, ta, sim)
 toc()
 
-con.yaw_data = construct_yaw_matrix_dynamic(result.minimizer, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
+con.yaw_data = construct_yaw_matrix_dynamic(x, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
 
 vis.online = true
 # Clean up any existing PNG files in video folder before starting

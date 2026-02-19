@@ -22,6 +22,7 @@ end
 =#
 
 include("../examples/remote_plotting.jl")
+include("functions.jl")
 
 # get the settings for the wind field, simulator and controller
 wind, sim, con, floris, floridyn, ta, tp = setup(settings_file)
@@ -47,219 +48,40 @@ vis.online = false
 
 
 
-#------------------------------------------------------------------------------------------------------------
-#define required cost and memory helper functions
-
-
-function construct_yaw_matrix(x, sim, wf)   #wf to be used later
-
-
-    yaws =  ones(sim.end_time - sim.start_time + 1)   * x' * 360.0  #expands into a matrix,
-                                                                    # x is in [0,1] range
-        
-    #ADD CHECK: yaws must not excees X degrees misalignment from wind to prevent crash
-    return   [sim.start_time:sim.end_time    yaws]
-end
-
-
-
-
-function apply_yaw_rate_limit!(yaws, max_yaw_rate)
-    ax1, ax2 = axes(yaws)
-    
-    @inbounds for i in Iterators.drop(ax1, 1)
-        for j in ax2
-            yaw_change = yaws[i, j] - yaws[i-1, j]
-            
-            if abs(yaw_change) > max_yaw_rate
-                num_steps = ceil(Int, abs(yaw_change) / max_yaw_rate)
-                yaw_step = yaw_change / num_steps
-                
-                for k in 1:num_steps
-                    yaws[i-k+1, j] = yaws[i-k, j] + yaw_step
-                end
-            end
-        end
-    end
-end
-
-
-
-
-function construct_yaw_matrix_dynamic(x, sim, wf, num_yaw_changes, max_yaw_rate)
-    
-    num_steps = sim.end_time - sim.start_time + 1
-    
-    # 1. Preallocate the final yaw matrix exactly once to eliminate memory bottlenecks
-    yaws = Matrix{Float64}(undef, num_steps, wf.nT)
-    
-    if num_yaw_changes == 1
-        # Fill directly using broadcasting instead of allocating 'ones' matrices
-        for j in 1:wf.nT
-            yaws[:, j] .= x[j] * 360.0
-        end
-        return hcat(sim.start_time:sim.end_time, yaws)
-    end
-
-    duration = sim.end_time - sim.start_time
-    
-    # 2. Map normalized timestamps to specific row boundaries in our preallocated matrix
-    transitions = zeros(Int, num_yaw_changes)
-    for i in 1:(num_yaw_changes - 1)
-        # Calculate row index corresponding to the time change
-        transitions[i] = round(Int, x[i] * duration) + 1
-    end
-    transitions[end] = num_steps # Ensure the last segment reaches the very end
-    
-    # 3. Fill the matrix in-place
-    current_row = 1
-    for i in 1:num_yaw_changes
-        end_row = transitions[i]
-        
-        # Safeguard: optimizers sometimes guess non-sequential times (e.g., t2 < t1)
-        end_row = max(current_row - 1, end_row) 
-        if i == num_yaw_changes
-            end_row = num_steps # Force last segment to cover the remaining steps
-        end
-        
-        if current_row <= end_row
-            for j in 1:wf.nT
-                # Read directly from flat array 'x' using an index formula.
-                # This entirely avoids expensive `reshape` and array slicing.
-                flat_idx = num_yaw_changes - 1 + (i - 1) * wf.nT + j
-                val = x[flat_idx] * 360.0
-                
-                # Assign the scalar value directly to the specific block of memory
-                yaws[current_row:end_row, j] .= val 
-            end
-        end
-        current_row = end_row + 1
-    end
-
-    # Enforce yaw rate limits (in-place modification)
-    apply_yaw_rate_limit!(yaws, max_yaw_rate)
-
-    # hcat binds the time vector and the yaw matrix without generating extra rows
-    return hcat(sim.start_time:sim.end_time, yaws)
-end
-
-function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
-    # Create task-local copies of mutable state objects
-    # These get deep-copied once per task, ensuring no shared state
-    tlv = TaskLocalValue{NamedTuple}() do
-        (
-            
-            plt = deepcopy(plt),
-            set = deepcopy(set),
-            wf = deepcopy(wf),
-            wind = deepcopy(wind),
-            sim = deepcopy(sim),
-            floris = deepcopy(floris),
-            floridyn = deepcopy(floridyn),
-            vis = deepcopy(vis),
-            con = deepcopy(con)
-            #need to figure out which input arguments get modified
-            # in-place to determine what needs to be deep-copied
-        )
-    end
-    
-    return function cost(x)
- 
-          
-        
-        
-        state = tlv[]
-        # Call runFLORIDyn with task-local copies
-        # So each thread modifies its own copies, never shared
-        plt_local  = state.plt
-        set_local  = state.set
-        wf_local = state.wf
-        wind_local = state.wind
-        sim_local = state.sim
-        floris_local = state.floris
-        floridyn_local = state.floridyn
-        vis_local = state.vis
-        con_local = state.con
-
-        #mapping from x to yaw matrix
-    
-        con_local.yaw_data = construct_yaw_matrix_dynamic(x, sim_local, wf_local, set_num_yaw_changes, set_max_yaw_rate)  #construct yaw matrix for current candidate solution x, with max yaw rate of 10 deg/s
-
-
-
-        # Now safe: each thread has isolated state
-       
-        wf, md, mi = run_floridyn(plt_local, set_local, wf_local, wind_local, sim_local, con_local, vis_local, floridyn_local, floris_local)
-        return -sum(md.PowerGen)
-        
-
-        #could try something like a try/catch statement to expand search space, 
-        #and gradient towards wind direction to return simulation back to feasible direction
-        #instead of providing a flat indicator function
-
-        #...
-        
-
-        
-    end
-end
-
-
-
-
-"""
- function construct_yaw_matrix()
-        #construct yaw matrix for optimisation, reducing the number of free variables for the optimiser
-
-
-"""
-
-
 
 #------------------------------------------------------------------------------------------------------------
 #OPTIMISATION PART
 
 
 #number of yaw changes allowed
-set_num_yaw_changes = 3 #N
+set_num_yaw_changes = 4 #N
 set_max_yaw_rate = 1.0 #deg/s
+#set_num_optimiser_runs = 1  #number of automatic restarts for CMA-ES, unused at the moment
 
 # set cost function
-fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
-
-
-#init: yaws aligned with wind, equal time spacing
-equal_time_spacing = 0:1/set_num_yaw_changes:1
-#include wind direction reading here
-yaw_guesses = repeat(0/360 * ones(wf.nT), set_num_yaw_changes)  #do some interpolation on 
-                                # wind direction here
+cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 
 
 
 
-
-
-#set initial guess
-
-x0 = vcat(equal_time_spacing[2:end-1], yaw_guesses)  #182 deg
-#x0 = result.minimizer  #start from previous result
+#initial state
+#x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)
+x0 = result.minimizer  #start from previous result
 
 
 
 
 
+#hyperparams
+set_lambda_multiplier = 1  #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT)) * set_num_yaw_changes     / 2.0   )   #half the offspring 
+set_lambda = Int(set_lambda_multiplier * set_lambda0)
+set_mu = Int(round(set_lambda / 2))
+set_sigma0 =  0.03  # set to 30% of the search range, and for yaw convergence: first 0.1, then 0.03
 
 
 
-#AAAAAAA note for next time: make these limits dependent on the dynamic wind field
-lower_bounds = vcat(zeros(set_num_yaw_changes-1),    -0.4 * ones(wf.nT))
-upper_bounds = vcat(ones(set_num_yaw_changes-1),      0.4 * ones(wf.nT))
-
-
-
-
-
-
+#opts
 opts = Evolutionary.Options(
     iterations = 30,
     abstol = 1e-8,
@@ -271,23 +93,15 @@ opts = Evolutionary.Options(
 )
 
 
-#max yawing rate
+#constraints
+#limit normalised time to [0,1], yaws are free after adding try/catch
+lower_bounds = vcat(zeros(set_num_yaw_changes-1))   #,    -10 * ones(set_num_yaw_changes * wf.nT))
+upper_bounds = vcat(ones(set_num_yaw_changes-1))  #,      10 * ones(set_num_yaw_changes * wf.nT))
 
 
 
-#hyperparams
-set_lambda_multiplier = 3
-set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT)) * set_num_yaw_changes     / 2.0   )   #half the offspring 
-set_lambda = Int(set_lambda_multiplier * set_lambda0)
-set_mu = Int(round(set_lambda / 2))
-set_sigma0 =  0.03  # set to 30% of the search range
 
-
-#think about rescaling for time steps, this sigma is too small that part of the optim space
-
-
-
-@time result =  Evolutionary.optimize(fit_func,
+@time result =  Evolutionary.optimize(cost_func,
                                 BoxConstraints(lower_bounds, upper_bounds),
                                 x0, 
                                 CMAES(  lambda = set_lambda,
@@ -300,13 +114,21 @@ set_sigma0 =  0.03  # set to 30% of the search range
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 #----------------------------------------------------------------------------------
 
 #PLOTTING
-
-
-
-
 
 
 
