@@ -65,12 +65,29 @@ end
 
 
 
-
+function apply_yaw_rate_limit!(yaws, max_yaw_rate)
+    ax1, ax2 = axes(yaws)
+    
+    @inbounds for i in Iterators.drop(ax1, 1)
+        for j in ax2
+            yaw_change = yaws[i, j] - yaws[i-1, j]
+            
+            if abs(yaw_change) > max_yaw_rate
+                num_steps = ceil(Int, abs(yaw_change) / max_yaw_rate)
+                yaw_step = yaw_change / num_steps
+                
+                for k in 1:num_steps
+                    yaws[i-k+1, j] = yaws[i-k, j] + yaw_step
+                end
+            end
+        end
+    end
+end
 
 
 
 #dynamic yaw matrix construction, where the optimiser can choose at which time steps the yaw angles change, and what the yaw angles are for each time period between changes
-function construct_yaw_matrix_dynamic(x, sim, wf, num_yaw_changes)   #wf to be used later
+function construct_yaw_matrix_dynamic(x, sim, wf, num_yaw_changes, max_yaw_rate)   #wf to be used later
 
     #structure of x: [time_yaw_change | yaw_change_vector1 | yaw_change_vector2 | ...]
     # where time_yaw_change is a vector of length num_yaw_changes-1, with values
@@ -79,7 +96,6 @@ function construct_yaw_matrix_dynamic(x, sim, wf, num_yaw_changes)   #wf to be u
     # so, for example, if num_yaw_changes = 3, then x would look like this: [t1, t2, yaw1_vector, yaw2_vector, yaw3_vector]
     # where t1 and t2 are the time steps at which the yaw angles change, and yaw1_vector, yaw2_vector, yaw3_vector are the yaw angles for each change, which are held constant between the time steps defined in time_yaw_change
     
-
 
     if num_yaw_changes == 1
         yaws = ones(sim.end_time - sim.start_time + 1)   * x' * 360.0  #expands into a matrix,
@@ -102,27 +118,26 @@ function construct_yaw_matrix_dynamic(x, sim, wf, num_yaw_changes)   #wf to be u
     
     
     for i = 2:num_yaw_changes-1
-
-
-        #note: possible error with timestamps variable creating arrays of different sizes
+        #set yaws of current step
         yaw =  ones(yaw_change_timestamps[i+1] - yaw_change_timestamps[i])  *  yaw_changes[i, :]' .* 360.0  #expands into a matrix, where each row is the yaw angles for that time period
         yaws = [yaws; yaw]
     end
+
     #last time period, from last change to end
-    yaw =  ones(sim.end_time - yaw_change_timestamps[end])  *  yaw_changes[end, :]' .* 360.0
+    yaw =  ones(sim.end_time - yaw_change_timestamps[end])  *  yaw_changes[end, :]' .* 360.0 
 
     yaws = [yaws; yaw]
+    #note: fix allocation for memory bottleneck
+    
 
-    #ADD CHECK: yaws must not excees X degrees misalignment from wind to prevent crash
-    return   [sim.start_time:sim.end_time    yaws]
+    # limit transition to max_yaw_rate, by linearly interpolating between the yaw angles before and after the change over a time period defined by max_yaw_rate
+
+    apply_yaw_rate_limit!(yaws, max_yaw_rate)  #in-place modification of yaw matrix to limit yaw rate,
+    #by linearly interpolating between the yaw angles before and after the change over a time period defined by max_yaw_rate
+
+    #plot yaw over time ...
+    return   [sim.start_time:sim.end_time    yaws ]
 end
-
-
-
-
-
-
-
 
 
 
@@ -166,14 +181,23 @@ function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, flori
 
         #mapping from x to yaw matrix
     
-        con_local.yaw_data = construct_yaw_matrix_dynamic(x, sim_local, wf_local, set_num_yaw_changes)  
+        con_local.yaw_data = construct_yaw_matrix_dynamic(x, sim_local, wf_local, set_num_yaw_changes, set_max_yaw_rate)  #construct yaw matrix for current candidate solution x, with max yaw rate of 10 deg/s
 
 
 
         # Now safe: each thread has isolated state
+       
         wf, md, mi = run_floridyn(plt_local, set_local, wf_local, wind_local, sim_local, con_local, vis_local, floridyn_local, floris_local)
         return -sum(md.PowerGen)
-        # Compute fitness from your simulation results
+        
+
+        #could try something like a try/catch statement to expand search space, 
+        #and gradient towards wind direction to return simulation back to feasible direction
+        #instead of providing a flat indicator function
+
+        #...
+        
+
         
     end
 end
@@ -195,8 +219,8 @@ end
 
 
 #number of yaw changes allowed
-set_num_yaw_changes = 4
-
+set_num_yaw_changes = 3 #N
+set_max_yaw_rate = 1.0 #deg/s
 
 # set cost function
 fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
@@ -205,40 +229,58 @@ fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 #init: yaws aligned with wind, equal time spacing
 equal_time_spacing = 0:1/set_num_yaw_changes:1
 #include wind direction reading here
-yaw_guesses = repeat(180/360 * ones(wf.nT), set_num_yaw_changes)  #do some interpolation on 
+yaw_guesses = repeat(0/360 * ones(wf.nT), set_num_yaw_changes)  #do some interpolation on 
                                 # wind direction here
+
+
+
+
+
 
 #set initial guess
 
-x0 = vcat(equal_time_spacing[2:end-1], yaw_guesses)  #182 deg
-#x0 = result.minimizer  #start from previous result
+#x0 = vcat(equal_time_spacing[2:end-1], yaw_guesses)  #182 deg
+x0 = result.minimizer  #start from previous result
+
+
+
+
+
+
 
 
 #AAAAAAA note for next time: make these limits dependent on the dynamic wind field
-lower_bounds = vcat(zeros(set_num_yaw_changes-1), 0.3 * ones(wf.nT))
-upper_bounds = vcat(ones(set_num_yaw_changes-1), 0.7 * ones(wf.nT))
+lower_bounds = vcat(zeros(set_num_yaw_changes-1),    -0.4 * ones(wf.nT))
+upper_bounds = vcat(ones(set_num_yaw_changes-1),      0.4 * ones(wf.nT))
+
+
 
 
 
 
 opts = Evolutionary.Options(
-    iterations = 20,
+    iterations = 30,
     abstol = 1e-8,
     reltol = 1e-8,
     show_trace = true,
     show_every = 1,
     store_trace = true,
-    parallelization = :thread  #serial     #thread   
+    parallelization = :thread  #serial   #thread   
 )
+
+
+#max yawing rate
 
 
 
 #hyperparams
-set_lambda_multiplier = 5
+set_lambda_multiplier = 3
 set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT)) * set_num_yaw_changes     / 2.0   )   #half the offspring 
 set_lambda = Int(set_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
 set_sigma0 =  0.03  # set to 30% of the search range
+
+
 #think about rescaling for time steps, this sigma is too small that part of the optim space
 
 
@@ -284,7 +326,7 @@ vis.online = false
 
 
 #plot flowfield
-con.yaw_data = construct_yaw_matrix_dynamic(result.minimizer, sim, wf, set_num_yaw_changes)
+con.yaw_data = construct_yaw_matrix_dynamic(result.minimizer, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
 wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
 plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)

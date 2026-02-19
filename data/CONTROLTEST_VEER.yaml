@@ -159,14 +159,14 @@ floris:
            
            
   #veer params:           
-  veer_gradient: 0.1   #veer gradient in deg/m
+  veer_gradient: 0.0   #veer gradient in deg/m
 
 
   #mohammadi model params:
   angle_tol: 1e-10   #angle tolerance for rotation rate chi of vortex sheet
   u_star: 0.4    #friction velocity 
   k: 0.6    #wake expansion coefficient
-  tsr: 8.0  #tip speed ratio NOTE CURRENTLY FIXED SO INDUCTION CONTROL DOESNT WORK
+  tsr: 8.0  #tip speed ratio NOTE CURRENTLY MUST BE FIXED SO INDUCTION CONTROL DOESNT WORK
 
 floridyn:
   n_op: 200
