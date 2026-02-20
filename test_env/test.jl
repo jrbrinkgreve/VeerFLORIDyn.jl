@@ -22,6 +22,7 @@ end
 =#
 
 include("../examples/remote_plotting.jl")
+include("functions.jl")
 
 # get the settings for the wind field, simulator and controller
 wind, sim, con, floris, floridyn, ta, tp = setup(settings_file)
@@ -47,248 +48,61 @@ vis.online = false
 
 
 
-#------------------------------------------------------------------------------------------------------------
-#define required cost and memory helper functions
-
-
-function construct_yaw_matrix(x, sim, wf)   #wf to be used later
-
-
-    yaws =  ones(sim.end_time - sim.start_time + 1)   * x' * 360.0  #expands into a matrix,
-                                                                    # x is in [0,1] range
-        
-    #ADD CHECK: yaws must not excees X degrees misalignment from wind to prevent crash
-    return   [sim.start_time:sim.end_time    yaws]
-end
-
-
-
-
-function apply_yaw_rate_limit!(yaws, max_yaw_rate)
-    ax1, ax2 = axes(yaws)
-    
-    @inbounds for i in Iterators.drop(ax1, 1)
-        for j in ax2
-            yaw_change = yaws[i, j] - yaws[i-1, j]
-            
-            if abs(yaw_change) > max_yaw_rate
-                num_steps = ceil(Int, abs(yaw_change) / max_yaw_rate)
-                yaw_step = yaw_change / num_steps
-                
-                for k in 1:num_steps
-                    yaws[i-k+1, j] = yaws[i-k, j] + yaw_step
-                end
-            end
-        end
-    end
-end
-
-
-
-#dynamic yaw matrix construction, where the optimiser can choose at which time steps the yaw angles change, and what the yaw angles are for each time period between changes
-function construct_yaw_matrix_dynamic(x, sim, wf, num_yaw_changes, max_yaw_rate)   #wf to be used later
-
-    #structure of x: [time_yaw_change | yaw_change_vector1 | yaw_change_vector2 | ...]
-    # where time_yaw_change is a vector of length num_yaw_changes-1, with values
-    #I want to to let the optimiser choose at which time steps the yaw angles change, so these are the time_yaw_change variables.
-    # the yaw_change_vectors are the actual yaw angles for each change, which are held constant between the time steps defined in time_yaw_change
-    # so, for example, if num_yaw_changes = 3, then x would look like this: [t1, t2, yaw1_vector, yaw2_vector, yaw3_vector]
-    # where t1 and t2 are the time steps at which the yaw angles change, and yaw1_vector, yaw2_vector, yaw3_vector are the yaw angles for each change, which are held constant between the time steps defined in time_yaw_change
-    
-
-    if num_yaw_changes == 1
-        yaws = ones(sim.end_time - sim.start_time + 1)   * x' * 360.0  #expands into a matrix,
-                                                                    # x is in [0,1] range
-    
-        return  [sim.start_time:sim.end_time    yaws]
-        #return statement ends function
-    end
-
-
-    #do this preallocation earlier and then fill it, probably also inplace writing
-    yaws = Matrix{Float64}(undef, length(sim.start_time:sim.end_time), wf.nT)  #initialize empty matrix to store yaw angles for each time step
-
-
-
-    yaw_change_timestamps = [0   x[1:num_yaw_changes-1]'] .* (sim.end_time - sim.start_time) .+ sim.start_time   #scale back to time range
-    yaw_change_timestamps = round.(Int, yaw_change_timestamps)  #round to integers for indexing
-    yaw_changes = reshape(x[num_yaw_changes:end], (wf.nT, num_yaw_changes))' 
-    #reshape yaw changes into matrix of size [num_yaw_changes x nT]
-    yaws = ones(yaw_change_timestamps[2] - yaw_change_timestamps[1] + 1)  * yaw_changes[1, :]' .* 360.0  #first time period, from start to first change
-    #                                                        +1 for the 0th data entry
-    
-    
-    for i = 2:num_yaw_changes-1
-        #set yaws of current step
-        yaw =  ones(yaw_change_timestamps[i+1] - yaw_change_timestamps[i])  *  yaw_changes[i, :]' .* 360.0  #expands into a matrix, where each row is the yaw angles for that time period
-        yaws = [yaws; yaw]
-    end
-
-    #last time period, from last change to end
-    yaw =  ones(sim.end_time - yaw_change_timestamps[end])  *  yaw_changes[end, :]' .* 360.0 
-
-    yaws = [yaws; yaw]
-    #note: fix allocation for memory bottleneck
-    
-
-    # limit transition to max_yaw_rate, by linearly interpolating between the yaw angles before and after the change over a time period defined by max_yaw_rate
-
-    apply_yaw_rate_limit!(yaws, max_yaw_rate)  #in-place modification of yaw matrix to limit yaw rate,
-                                                #by linearly interpolating between the yaw angles
-                                                #before and after the change over a time 
-                                                #period defined by max_yaw_rate
-
-    #plot yaw over time ...
-    return   [sim.start_time:sim.end_time    yaws ]
-end
-
-
-
-function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
-    # Create task-local copies of mutable state objects
-    # These get deep-copied once per task, ensuring no shared state
-    tlv = TaskLocalValue{NamedTuple}() do
-        (
-            
-            plt = deepcopy(plt),
-            set = deepcopy(set),
-            wf = deepcopy(wf),
-            wind = deepcopy(wind),
-            sim = deepcopy(sim),
-            floris = deepcopy(floris),
-            floridyn = deepcopy(floridyn),
-            vis = deepcopy(vis),
-            con = deepcopy(con)
-            #need to figure out which input arguments get modified
-            # in-place to determine what needs to be deep-copied
-        )
-    end
-    
-    return function cost(x)
- 
-          
-        
-        
-        state = tlv[]
-        # Call runFLORIDyn with task-local copies
-        # So each thread modifies its own copies, never shared
-        plt_local  = state.plt
-        set_local  = state.set
-        wf_local = state.wf
-        wind_local = state.wind
-        sim_local = state.sim
-        floris_local = state.floris
-        floridyn_local = state.floridyn
-        vis_local = state.vis
-        con_local = state.con
-
-        #mapping from x to yaw matrix
-    
-        con_local.yaw_data = construct_yaw_matrix_dynamic(x, sim_local, wf_local, set_num_yaw_changes, set_max_yaw_rate)  #construct yaw matrix for current candidate solution x, with max yaw rate of 10 deg/s
-
-
-
-        # Now safe: each thread has isolated state
-       
-        wf, md, mi = run_floridyn(plt_local, set_local, wf_local, wind_local, sim_local, con_local, vis_local, floridyn_local, floris_local)
-        return -sum(md.PowerGen)
-        
-
-        #could try something like a try/catch statement to expand search space, 
-        #and gradient towards wind direction to return simulation back to feasible direction
-        #instead of providing a flat indicator function
-
-        #...
-        
-
-        
-    end
-end
-
-
-
-
-"""
- function construct_yaw_matrix()
-        #construct yaw matrix for optimisation, reducing the number of free variables for the optimiser
-
-
-"""
-
-
 
 #------------------------------------------------------------------------------------------------------------
 #OPTIMISATION PART
 
 
 #number of yaw changes allowed
-set_num_yaw_changes = 3 #N
+set_num_yaw_changes = 4 #N
 set_max_yaw_rate = 1.0 #deg/s
+set_max_yaw_misalignment = 85.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
+#set_num_optimiser_runs = 1  #number of automatic restarts for CMA-ES, unused at the moment
 
 # set cost function
-fit_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
-
-
-#init: yaws aligned with wind, equal time spacing
-equal_time_spacing = 0:1/set_num_yaw_changes:1
-#include wind direction reading here
-yaw_guesses = repeat(0/360 * ones(wf.nT), set_num_yaw_changes)  #do some interpolation on 
-                                # wind direction here
+cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 
 
 
 
-
-
-#set initial guess
-
-#x0 = vcat(equal_time_spacing[2:end-1], yaw_guesses)  #182 deg
+#initial state
+#x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)
 x0 = result.minimizer  #start from previous result
 
 
 
 
 
+#hyperparams
+set_lambda_multiplier = 3 #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes-1)))      / 2.0   )   #half the offspring 
+set_lambda = Int(set_lambda_multiplier * set_lambda0)
+set_mu = Int(round(set_lambda / 2))
+set_sigma0 =  0.01  # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
 
 
 
-#AAAAAAA note for next time: make these limits dependent on the dynamic wind field
-lower_bounds = vcat(zeros(set_num_yaw_changes-1),    -0.4 * ones(wf.nT))
-upper_bounds = vcat(ones(set_num_yaw_changes-1),      0.4 * ones(wf.nT))
-
-
-
-
-
-
-opts = Evolutionary.Options(
-    iterations = 30,
+#opts
+opts = Evolutionary.Options( 
+    iterations = 100,
     abstol = 1e-8,
     reltol = 1e-8,
     show_trace = true,
-    show_every = 1,
+    show_every = 1, 
     store_trace = true,
-    parallelization = :thread  #serial   #thread   
+    parallelization = :thread  #serial   #thread     #multithreading hehe
 )
 
 
-#max yawing rate
+#constraints
+#limit normalised time to [0,1], yaws are free after adding try/catch
+lower_bounds = vcat(zeros(set_num_yaw_changes-1))   #,    -10 * ones(set_num_yaw_changes * wf.nT))
+upper_bounds = vcat(ones(set_num_yaw_changes-1))  #,      10 * ones(set_num_yaw_changes * wf.nT))
 
 
 
-#hyperparams
-set_lambda_multiplier = 3
-set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT)) * set_num_yaw_changes     / 2.0   )   #half the offspring 
-set_lambda = Int(set_lambda_multiplier * set_lambda0)
-set_mu = Int(round(set_lambda / 2))
-set_sigma0 =  0.03  # set to 30% of the search range
 
-
-#think about rescaling for time steps, this sigma is too small that part of the optim space
-
-
-
-@time result =  Evolutionary.optimize(fit_func,
+@time result =  Evolutionary.optimize(cost_func,
                                 BoxConstraints(lower_bounds, upper_bounds),
                                 x0, 
                                 CMAES(  lambda = set_lambda,
@@ -301,13 +115,21 @@ set_sigma0 =  0.03  # set to 30% of the search range
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 #----------------------------------------------------------------------------------
 
 #PLOTTING
-
-
-
-
 
 
 
@@ -360,9 +182,19 @@ as the globally best result is not returned while calling get_energy.jl
 
 #include automatic IPOP restart strategies for CMA-ES to get out of local minima?
 
+#----------------------------------------------------------------------------------
+
+also some more notes:
+20 feb 2026
+individual turbine switching has a lower minimum but finding it is too hard for the optimiser,
+so we will stick with simultaneous switching for now, and can report about this in the thesis
 
 
 
+next steps are minimizing the l1 norm of the yaw actuation on top of the power maximisation. 
+the code provides an interface for this via the cost function:
+    max_yaw_misalignment is a way of penalising large yaw angles (also for stability)
+    set_
 
 
 =#

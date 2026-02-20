@@ -65,19 +65,19 @@ cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, f
 
 
 #initial state
-x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)
-#x0 = result.minimizer  #start from previous result
+#x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)
+x0 = result.minimizer  #start from previous result
 
 
 
 
 
 #hyperparams
-set_lambda_multiplier = 1  #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
-set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT)) * set_num_yaw_changes     / 2.0   )   #half the offspring 
+set_lambda_multiplier = 2  #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes-1)))     / 2.0   )   #half the offspring 
 set_lambda = Int(set_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
-set_sigma0 =  0.03  # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
+set_sigma0 =  0.01 # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
 
 
 

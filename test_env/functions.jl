@@ -147,14 +147,14 @@ function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis
                 rel_yaw = abs(yaws_only[i, turbine_idx] - current_wind_dir)
                 # Keep track of the worst offender relative to the 90 deg crash limit
                 # We use 85 deg as a buffer
-                max_violation = max(max_violation, rel_yaw - 85.0)
+                max_violation = max(max_violation, rel_yaw - set_max_yaw_misalignment)
 
 
 
             end
         end
 
-        #can add ||yaw||_1 penalty term to encourage sparse control
+    
         
 
 
@@ -230,8 +230,6 @@ end
 
 
 
-#"testing area inside testing area"----------------------------------------------------------------------------
-
 #parallel test function without try/catch to see errors
 function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
     # Create task-local copies of mutable state objects
@@ -276,7 +274,6 @@ function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, flori
         con_local.yaw_data = construct_yaw_matrix_dynamic(x, sim_local, wf_local, set_num_yaw_changes, set_max_yaw_rate)  #construct yaw matrix for current candidate solution x, with max yaw rate of 10 deg/s
 
 
-
         # Now safe: each thread has isolated state
        
         wf, md, mi = run_floridyn(plt_local, set_local, wf_local, wind_local, sim_local, con_local, vis_local, floridyn_local, floris_local)
@@ -297,15 +294,82 @@ end
 
 
 
+"""
+this set of functions allows for individual turbine switching times,
+but this makes the optim. problem too hard, and having a common switching time
+leads to better results.
 
+"""
 
+# cost function with for individual turbine switching plus trycatch for misalignment
+function parallel_costfunction_individual_switches(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
+    # Task-local storage to prevent race conditions during parallel optimization
+    tlv = TaskLocalValue{NamedTuple}() do
+        (
+            plt=deepcopy(plt), set=deepcopy(set), wf=deepcopy(wf),
+            wind=deepcopy(wind), sim=deepcopy(sim), floris=deepcopy(floris),
+            floridyn=deepcopy(floridyn), vis=deepcopy(vis), con=deepcopy(con)
+        )
+    end
+    
+    return function cost(x)
+        state = tlv[]
+        
+        # 1. Construct the turbine-specific yaw matrix
+        # This already accounts for individual switching times and yaw rate limits
+        yaws_with_time = construct_yaw_matrix_dynamic_individual_switches(x, state.sim, state.wf, set_num_yaw_changes, set_max_yaw_rate)
+        
+        sim_times = yaws_with_time[:, 1]
+        yaws_only = yaws_with_time[:, 2:end] 
+        wind_table = state.wind.dir           
+        
+        # 2. Calculate Maximum Relative Yaw Violation across all turbines and time
+        max_violation = 0.0
+        
+        for (i, t) in enumerate(sim_times)
+            # Get the global wind direction at this timestamp
+            current_wind_dir = get_wind_at_t(t, wind_table)
+          
+            @inbounds for j in 1:state.wf.nT
+                # Calculate shortest angular difference (handles 0/360 wrap-around)
+                # Formula: (diff + 180) % 360 - 180
+                diff = yaws_only[i, j] - current_wind_dir
+                rel_yaw = abs(mod(diff + 180.0, 360.0) - 180.0)
+                
+                # Update max_violation if this turbine/time-step exceeds 85 degrees
+                max_violation = max(max_violation, rel_yaw - 85.0)
+            end
+        end
 
+        # 3. Penalty Branch (Numerical Stability Guard)
+        # If any turbine at any time exceeds 85° misalignment, we abort the simulation
+        # and return a high penalty value to steer the optimizer away.
+        if max_violation > 0
+            return 1e6 + (max_violation^2 * 1000.0)
+        end
 
+        # 4. Feasible Branch (Run the actual simulation)
+        try
+            state.con.yaw_data = yaws_with_time
+            wf_res, md, mi = run_floridyn(
+                state.plt, state.set, state.wf, state.wind, 
+                state.sim, state.con, state.vis, state.floridyn, state.floris
+            )
+            
+            # Objective: Maximize power (minimize negative power)
+            # Normalized by number of turbines and steps for consistent scaling
+            avg_power_kw = sum(md.PowerGen) / (state.wf.nT * state.sim.n_sim_steps)
+            return -avg_power_kw * 1000.0 
 
-
-
-
-
+        catch e
+            if e isa InterruptException 
+                rethrow(e)
+            end
+            #@warn "Simulation failed for current x, returning penalty."
+            return 2e6 
+        end
+    end
+end
 
 # time-dependent yaw matrix construction (Individual Turbine Switching)
 function construct_yaw_matrix_dynamic_individual_switches(x, sim, wf, num_yaw_changes, max_yaw_rate)
@@ -360,10 +424,6 @@ function construct_yaw_matrix_dynamic_individual_switches(x, sim, wf, num_yaw_ch
 end
 
 
-
-
-
-
 # Generates an initial guess with individual turbine switching times
 function generate_initial_guess_individual_switches(sim, wind, wf, n_segments)
     duration = sim.end_time - sim.start_time
@@ -404,3 +464,22 @@ function generate_initial_guess_individual_switches(sim, wind, wf, n_segments)
     # Combine into the final flat vector x
     return vcat(time_guesses, yaw_guesses)
 end
+
+
+
+
+
+#"testing area inside testing area"----------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+

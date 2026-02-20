@@ -56,49 +56,53 @@ vis.online = false
 #number of yaw changes allowed
 set_num_yaw_changes = 4 #N
 set_max_yaw_rate = 1.0 #deg/s
+set_max_yaw_misalignment = 85.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
 #set_num_optimiser_runs = 1  #number of automatic restarts for CMA-ES, unused at the moment
 
 # set cost function
-#note: this is the one without try/catch, to see errors in the parallel version
-cost_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
+cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 
+
+
+#AAAAAAAAA
+#make some code around this to edit the general setttings to first do a crude search for the time 
+#optimisation, and then a second smaller sigma run for the yaw angles 
 
 
 
 #initial state
-x0 = generate_initial_guess_individual_switches(sim, wind, wf, set_num_yaw_changes)
-@infiltrate
-#x0 = result.minimizer  #start from previous result
+#x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)
+x0 = result.minimizer  #start from previous result
 
 
 
 
 
 #hyperparams
-set_lambda_multiplier = 1  #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
-set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT)) * set_num_yaw_changes     / 2.0   )   #half the offspring 
+set_lambda_multiplier = 1 #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes-1)))      / 2.0   )   #half the offspring 
 set_lambda = Int(set_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
-set_sigma0 =  0.03  # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
+set_sigma0 =  0.01  # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
 
 
 
 #opts
-opts = Evolutionary.Options(
-    iterations = 50,
+opts = Evolutionary.Options( 
+    iterations = 80,
     abstol = 1e-8,
     reltol = 1e-8,
     show_trace = true,
-    show_every = 1,
+    show_every = 1, 
     store_trace = true,
-    parallelization = :thread  #serial   #thread   
+    parallelization = :thread  #serial   #thread     #multithreading hehe
 )
 
 
 #constraints
 #limit normalised time to [0,1], yaws are free after adding try/catch
-lower_bounds = vcat(zeros(set_num_yaw_changes-1)*wf.nT)   #,    -10 * ones(set_num_yaw_changes * wf.nT))
-upper_bounds = vcat(ones(set_num_yaw_changes-1)*wf.nT)  #,      10 * ones(set_num_yaw_changes * wf.nT))
+lower_bounds = vcat(zeros(set_num_yaw_changes-1))   #,    -10 * ones(set_num_yaw_changes * wf.nT))
+upper_bounds = vcat(ones(set_num_yaw_changes-1))  #,      10 * ones(set_num_yaw_changes * wf.nT))
 
 
 
@@ -183,9 +187,22 @@ as the globally best result is not returned while calling get_energy.jl
 
 #include automatic IPOP restart strategies for CMA-ES to get out of local minima?
 
+#----------------------------------------------------------------------------------
+
+also some more notes:
+20 feb 2026
+individual turbine switching has a lower minimum but finding it is too hard for the optimiser,
+so we will stick with simultaneous switching for now, and can report about this in the thesis
 
 
 
+next steps are minimizing the l1 norm of the yaw actuation on top of the power maximisation. 
+the code provides an interface for this via the cost function:
+    max_yaw_misalignment is a way of penalising large yaw angles (also for stability)
+    
+
+
+also next time do profiling to test the memory bottleneck with ~17% gc
 
 
 =#

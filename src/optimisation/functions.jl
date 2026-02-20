@@ -115,8 +115,11 @@ function get_wind_at_t(t, wind_matrix)
 end
 
 
-#cost function with parallel
+
+
+# cost function with for individual turbine switching plus trycatch for misalignment
 function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
+    # Task-local storage to prevent race conditions during parallel optimization
     tlv = TaskLocalValue{NamedTuple}() do
         (
             plt=deepcopy(plt), set=deepcopy(set), wf=deepcopy(wf),
@@ -128,74 +131,67 @@ function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis
     return function cost(x)
         state = tlv[]
         
-        # 1. Construct the yaw matrix [time y1 y2 ...]
+        # 1. Construct the turbine-specific yaw matrix
+        # This already accounts for individual switching times and yaw rate limits
         yaws_with_time = construct_yaw_matrix_dynamic(x, state.sim, state.wf, set_num_yaw_changes, set_max_yaw_rate)
         
-        # 2. Extract Data for Validation
         sim_times = yaws_with_time[:, 1]
-        yaws_only = yaws_with_time[:, 2:end] # All turbines
-        wind_table = state.wind.dir           # Your 3x2 matrix
+        yaws_only = yaws_with_time[:, 2:end] 
+        wind_table = state.wind.dir           
         
-        # 3. Calculate Relative Yaw Violation
-        # We check every time step 't' against the interpolated wind at 't'
+        # 2. Calculate Maximum Relative Yaw Violation across all turbines and time
         max_violation = 0.0
-        @inbounds for (i, t) in enumerate(sim_times)
+        
+        for (i, t) in enumerate(sim_times)
+            # Get the global wind direction at this timestamp
             current_wind_dir = get_wind_at_t(t, wind_table)
           
-            # Check all turbines at this specific second
-            @inbounds for turbine_idx in axes(yaws_only, 2)
-                rel_yaw = abs(yaws_only[i, turbine_idx] - current_wind_dir)
-                # Keep track of the worst offender relative to the 90 deg crash limit
-                # We use 85 deg as a buffer
+            @inbounds for j in 1:state.wf.nT
+                # Calculate shortest angular difference (handles 0/360 wrap-around)
+                # Formula: (diff + 180) % 360 - 180
+                diff = yaws_only[i, j] - current_wind_dir
+                rel_yaw = abs(mod(diff + 180.0, 360.0) - 180.0)
+                
+                # Update max_violation if this turbine/time-step exceeds 85 degrees
                 max_violation = max(max_violation, rel_yaw - 85.0)
-
-
-
             end
         end
 
-        #can add ||yaw||_1 penalty term to encourage sparse control
-        
-
-
-
-
-
-
-
-        # 4. Penalty Branch
+        # 3. Penalty Branch (Numerical Stability Guard)
+        # If any turbine at any time exceeds 85° misalignment, we abort the simulation
+        # and return a high penalty value to steer the optimizer away.
         if max_violation > 0
-            # Quadratic penalty creates a smooth "slope" leading back to 0 violation
             return 1e6 + (max_violation^2 * 1000.0)
         end
 
-        # 5. Feasible Branch
-        
+        # 4. Feasible Branch (Run the actual simulation)
         try
-        
             state.con.yaw_data = yaws_with_time
-            wf, md, mi = run_floridyn(
+            wf_res, md, mi = run_floridyn(
                 state.plt, state.set, state.wf, state.wind, 
                 state.sim, state.con, state.vis, state.floridyn, state.floris
             )
             
-            
-            #can add more complex term here
-            #is now set to total energy
-            return -sum(md.PowerGen) / (wf.nT * sim.n_sim_steps) * 1000.0  #in kW per turbine
-
-
-
+            # Objective: Maximize power (minimize negative power)
+            # Normalized by number of turbines and steps for consistent scaling
+            avg_power_kw = sum(md.PowerGen) / (state.wf.nT * state.sim.n_sim_steps) 
+            return -avg_power_kw * 1000.0 
 
         catch e
-            # 1. If the user hits Ctrl+C, let it happen!
             if e isa InterruptException 
                 rethrow(e)
             end
-            return 2e6 # Fallback for unexpected failures
+            if e isa OutOfMemoryError
+                @warn "Simulation ran out of memory for current x, returning penalty."
+            end
+            #@warn "Simulation failed for current x, returning penalty."
+            return 2e6 
         end
     end
 end
+
+
+
 
 
 #generates an initial guess aligned with the middle point of the uniform time segments
