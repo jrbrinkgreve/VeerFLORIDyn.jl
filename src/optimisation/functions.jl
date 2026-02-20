@@ -158,6 +158,11 @@ function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis
         
 
 
+
+
+
+
+
         # 4. Penalty Branch
         if max_violation > 0
             # Quadratic penalty creates a smooth "slope" leading back to 0 violation
@@ -165,7 +170,9 @@ function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis
         end
 
         # 5. Feasible Branch
+        
         try
+        
             state.con.yaw_data = yaws_with_time
             wf, md, mi = run_floridyn(
                 state.plt, state.set, state.wf, state.wind, 

@@ -95,8 +95,8 @@ opts = Evolutionary.Options(
 
 #constraints
 #limit normalised time to [0,1], yaws are free after adding try/catch
-lower_bounds = vcat(zeros(set_num_yaw_changes-1)*wf.nT)   #,    -10 * ones(set_num_yaw_changes * wf.nT))
-upper_bounds = vcat(ones(set_num_yaw_changes-1)*wf.nT)  #,      10 * ones(set_num_yaw_changes * wf.nT))
+lower_bounds = vcat(zeros(set_num_yaw_changes-1))   #,    -10 * ones(set_num_yaw_changes * wf.nT))
+upper_bounds = vcat(ones(set_num_yaw_changes-1))  #,      10 * ones(set_num_yaw_changes * wf.nT))
 
 
 

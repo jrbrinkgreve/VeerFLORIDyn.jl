@@ -59,13 +59,15 @@ set_max_yaw_rate = 1.0 #deg/s
 #set_num_optimiser_runs = 1  #number of automatic restarts for CMA-ES, unused at the moment
 
 # set cost function
-cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris)
+#note: this is the one without try/catch, to see errors in the parallel version
+cost_func = create_fitness(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 
 
 
 
 #initial state
-x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)
+x0 = generate_initial_guess_individual_switches(sim, wind, wf, set_num_yaw_changes)
+@infiltrate
 #x0 = result.minimizer  #start from previous result
 
 
