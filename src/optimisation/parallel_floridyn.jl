@@ -21,7 +21,7 @@ else
 end
 =#
 
-include("../examples/remote_plotting.jl")
+include("../../examples/remote_plotting.jl")
 include("functions.jl")
 
 # get the settings for the wind field, simulator and controller
