@@ -230,6 +230,71 @@ end
 
 
 
+#"testing area inside testing area"----------------------------------------------------------------------------
+
+#parallel test function without try/catch to see errors
+function create_fitness(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
+    # Create task-local copies of mutable state objects
+    # These get deep-copied once per task, ensuring no shared state
+    tlv = TaskLocalValue{NamedTuple}() do
+        (
+            
+            plt = deepcopy(plt),
+            set = deepcopy(set),
+            wf = deepcopy(wf),
+            wind = deepcopy(wind),
+            sim = deepcopy(sim),
+            floris = deepcopy(floris),
+            floridyn = deepcopy(floridyn),
+            vis = deepcopy(vis),
+            con = deepcopy(con)
+            #need to figure out which input arguments get modified
+            # in-place to determine what needs to be deep-copied
+        )
+    end
+    
+    return function cost(x)
+ 
+          
+        
+        
+        state = tlv[]
+        # Call runFLORIDyn with task-local copies
+        # So each thread modifies its own copies, never shared
+        plt_local  = state.plt
+        set_local  = state.set
+        wf_local = state.wf
+        wind_local = state.wind
+        sim_local = state.sim
+        floris_local = state.floris
+        floridyn_local = state.floridyn
+        vis_local = state.vis
+        con_local = state.con
+
+        #mapping from x to yaw matrix
+    
+        con_local.yaw_data = construct_yaw_matrix_dynamic(x, sim_local, wf_local, set_num_yaw_changes, set_max_yaw_rate)  #construct yaw matrix for current candidate solution x, with max yaw rate of 10 deg/s
+
+
+
+        # Now safe: each thread has isolated state
+       
+        wf, md, mi = run_floridyn(plt_local, set_local, wf_local, wind_local, sim_local, con_local, vis_local, floridyn_local, floris_local)
+        return -sum(md.PowerGen)
+        
+
+        #could try something like a try/catch statement to expand search space, 
+        #and gradient towards wind direction to return simulation back to feasible direction
+        #instead of providing a flat indicator function
+
+        #...
+        
+
+        
+    end
+end
+
+
 
 
 
