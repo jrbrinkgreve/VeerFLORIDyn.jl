@@ -221,11 +221,6 @@ end
 
 
 
-
-
-
-
-
 #cost function with parallel
 function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
     tlv = TaskLocalValue{NamedTuple}() do
@@ -268,7 +263,7 @@ function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis
             yaw_changes[i] = sum(abs.(yaws_only[1:end-1, i] - yaws_only[2:end, i]))
             
             if yaw_changes[i] > set_lambda_l1_hard_limit #unacceptable yaw path, too much
-                return 1e6 + (yaw_changes[i] - set_lambda_l1_hard_limit)^2 * 1000.0
+                return 1e3 + (yaw_changes[i] - set_lambda_l1_hard_limit)^2 * 1000.0
             end
         end
 
@@ -277,7 +272,7 @@ function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis
         #in case turbines are misaligned too strongly  
         if max_violation > 0
             # Quadratic penalty creates a smooth "slope" leading back to 0 violation
-            return 1e6 + (max_violation^2 * 1000.0)
+            return 1e3 + (max_violation^2 * 1000.0)
         end
 
         #any other constraint code:

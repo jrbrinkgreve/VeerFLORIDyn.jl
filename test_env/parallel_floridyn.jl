@@ -10,17 +10,8 @@ if Threads.nthreads() == 1; using ControlPlots; end
 #_ , vis_file = get_default_project()[2:3]
 vis_file = "data/vis_default.yaml"
 settings_file = "data/REALWF_CONTROLTEST_VEER.yaml"   #custom data file with veer specification
-
 vis = Vis(vis_file)
 plt=nothing
-#=
-vis = Vis(vis_file)
-if (@isdefined plt) && !isnothing(plt)
-    plt.ion()
-else
-    plt = nothing
-end
-=#
 
 include("../examples/remote_plotting.jl")
 include("functions.jl")
@@ -28,16 +19,10 @@ include("functions.jl")
 # get the settings for the wind field, simulator and controller
 wind, sim, con, floris, floridyn, ta, tp = setup(settings_file)
 
-#manually set the initial yaw angles for the optimisation 
-#con.yaw_data = [sim.start_time:sim.end_time        180 .*  ones(sim.end_time-sim.start_time+1, 9)]
-
-
 # create settings struct with automatic parallel/threading detection
 set = Settings(wind, sim, con, false, false)
 set.enable_veer = true
 set.control_mode = Yaw_Optimisation();
-
-
 wf, wind, sim, con, floris = prepareSimulation(set, wind, con, floridyn, floris, ta, sim);
 
 #run initial conditions
@@ -46,23 +31,22 @@ wf = initSimulation(wf, sim);
 #disable online visualisation
 vis.online = false 
 
-
-
-
-
 #------------------------------------------------------------------------------------------------------------
 #OPTIMISATION PART
 
 
+
+
+
+
+
 #optimisation constraints
-set_num_yaw_changes = 4 #N
-set_max_yaw_rate = 1.0 #deg/s
-set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
+set_num_yaw_changes = 4  #N
 set_num_optimiser_runs = 3  #number of automatic restarts for CMA-ES
-set_sigma0 =  0.03 # 0.01 works well!!          # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
-set_lambda_l1 = 0.0 #1e3  #units: cost PER DEGREE, per turbine, PER SECOND 
-                        #relative to the beneficial term average kW per turbine 
-                        #typical value 1e3, can play around with this
+set_max_yaw_rate = 1.0 #deg/s
+set_sigma0 =  0.05         # 0.01 works well in second run!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
+set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
+set_lambda_l1 = 0.0 #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf #a limit on the maximum total yaw change in a simulation, in degrees
 
 
@@ -71,21 +55,10 @@ set_lambda_l1_hard_limit = Inf #a limit on the maximum total yaw change in a sim
 # set cost function
 cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 
-#AAAAAAAAA
-#make some code around this to edit the general setttings to first do a crude search for the time 
-#optimisation, and then a second smaller sigma run for the yaw angles 
-
-#can also only copy the time part, then reinitialise the yaw angles
-
-
 
 #initial state
-x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)
-#x0 = result.minimizer  #start from previous result
-
-
-
-
+x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)   #x0 = result.minimizer  #start from previous result also possible
+                        
 
 #hyperparams
 set_lambda_multiplier = 3 #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
@@ -94,15 +67,13 @@ set_lambda = Int(set_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
 
 
-
-
 #opts
 opts = Evolutionary.Options( 
-    iterations = 20,
+    iterations = 50,
     abstol = 1e-8,
     reltol = 1e-8,
     show_trace = true,
-    show_every = 1, 
+    show_every = 5, 
     store_trace = true,
     parallelization = :thread  #serial   #thread           #multithreading hehe
 )
@@ -116,6 +87,9 @@ upper_bounds = vcat(ones(set_num_yaw_changes-1))  #,      10 * ones(set_num_yaw_
 println("Starting CMA-ES run 1")
 println("sigma0=$set_sigma0, lambda=$set_lambda, mu=$set_mu")
 
+
+
+begin_time = time()
 @time result =  Evolutionary.optimize(cost_func,
                                 BoxConstraints(lower_bounds, upper_bounds),
                                 x0, 
@@ -127,17 +101,9 @@ println("sigma0=$set_sigma0, lambda=$set_lambda, mu=$set_mu")
 
 
 
-
-
-
-
-
-
-
 #secondary runs with other options as well
 for run in 2:set_num_optimiser_runs
     
-
     #hyperparams
     local_set_lambda_multiplier = set_lambda_multiplier #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
     local_set_lambda0 = set_lambda0 
@@ -145,12 +111,12 @@ for run in 2:set_num_optimiser_runs
     local_set_mu = set_mu
 
     #reduce sigma
-    local_set_sigma0 = set_sigma0 / 3.0 
+    local_set_sigma0 = 0.01
 
     #print
     println()   
     println("Starting CMA-ES run $run")
-    println("sigma0=$local_set_sigma0, lambda=$local_set_lambda and mu=$local_set_mu")
+    println("sigma0=$local_set_sigma0, lambda=$local_set_lambda, mu=$local_set_mu")
 
     #set new initial guess and reinitialise cov matrix
     local_x0 = result.minimizer
@@ -166,16 +132,20 @@ for run in 2:set_num_optimiser_runs
 end
 
 
-
-
-
-
+end_time = time()
+total_time = end_time - begin_time
+println()
+println("Total optimization time: $(round(total_time, digits=2)) seconds")
 
 
 
 #----------------------------------------------------------------------------------
 
-#PLOTTING
+#PLOTTING & POSTPROCESSING
+
+
+
+
 
 
 
@@ -210,10 +180,10 @@ println()
 
 include("calculate_increase_over_baseline.jl")  #to calculate the increase over baseline for the optimised case, compared to a baseline case with no yawing
 
-
-
-
 println()
+if result.minimum > 0
+    println("ERROR: optimisation did not converge")
+end
 println("-----------------------")
 
 
