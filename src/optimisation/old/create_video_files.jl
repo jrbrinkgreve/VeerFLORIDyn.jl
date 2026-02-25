@@ -7,10 +7,9 @@ using Timers
 using FLORIDyn, TerminalPager, DistributedNext
 if Threads.nthreads() == 1; using ControlPlots; end
 
-#_ , vis_file = get_default_project()[2:3]
-#vis_file = "data/vis_54T.yaml"
-vis_file = "data/vis_default.yaml"
-settings_file = "data/REALWF_CONTROLTEST_VEER.yaml"   #custom data file with veer specification
+_ , vis_file = get_default_project()[2:3]
+settings_file = "data/CONTROLTEST_VEER.yaml"   #custom data file with veer specification
+
 vis = Vis(vis_file)
 vis.show_plots = false  # Enable/disable showing plots during simulation
 if (@isdefined plt) && !isnothing(plt)
@@ -39,7 +38,6 @@ set.control_mode = Yaw_Optimisation();
 
 
 x = result.minimizer
-
 
 
 
