@@ -13,7 +13,7 @@ if Threads.nthreads() == 1; using ControlPlots; end
 toc()
 
 _ , vis_file = get_default_project()[2:3]
-settings_file = "data/VEER_2021_9T_Data.yaml"   #custom data file with veer specification
+settings_file = "data/REALWF_CONTROLTEST_VEER.yaml"   #custom data file with veer specification
 
 
 # Load vis settings from YAML file

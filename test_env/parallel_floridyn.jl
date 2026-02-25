@@ -7,8 +7,9 @@ if Threads.nthreads() == 1; using ControlPlots; end
 
 
 #get the visualisation and settings
-_ , vis_file = get_default_project()[2:3]
-settings_file = "data/CONTROLTEST_VEER.yaml"   #custom data file with veer specification
+#_ , vis_file = get_default_project()[2:3]
+vis_file = "data/vis_54T.yaml"
+settings_file = "data/REALWF_CONTROLTEST_VEER.yaml"   #custom data file with veer specification
 
 vis = Vis(vis_file)
 plt=nothing
@@ -53,11 +54,21 @@ vis.online = false
 #OPTIMISATION PART
 
 
-#number of yaw changes allowed
-set_num_yaw_changes = 4 #N
+#optimisation constraints
+set_num_yaw_changes = 8 #N
 set_max_yaw_rate = 1.0 #deg/s
-set_max_yaw_misalignment = 85.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
+set_max_yaw_misalignment = 45.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
 #set_num_optimiser_runs = 1  #number of automatic restarts for CMA-ES, unused at the moment
+set_sigma0 =  0.02 # 0.01 works well!!          # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
+set_lambda_l1 = 0.0 #1e3  #units: cost PER DEGREE, per turbine, PER SECOND 
+                        #relative to the beneficial term average kW per turbine 
+                        #typical value 1e3, can play around with this
+set_lambda_l1_hard_limit = Inf #a limit on the maximum total yaw change in a simulation, in degrees
+
+
+
+
+
 
 # set cost function
 cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris)
@@ -67,6 +78,8 @@ cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, f
 #AAAAAAAAA
 #make some code around this to edit the general setttings to first do a crude search for the time 
 #optimisation, and then a second smaller sigma run for the yaw angles 
+
+#can also only copy the time part, then reinitialise the yaw angles
 
 
 
@@ -79,17 +92,17 @@ x0 = result.minimizer  #start from previous result
 
 
 #hyperparams
-set_lambda_multiplier = 1 #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+set_lambda_multiplier = 2 #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
 set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes-1)))      / 2.0   )   #half the offspring 
 set_lambda = Int(set_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
-set_sigma0 =  0.01  # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
+
 
 
 
 #opts
 opts = Evolutionary.Options( 
-    iterations = 80,
+    iterations = 200,
     abstol = 1e-8,
     reltol = 1e-8,
     show_trace = true,
@@ -204,5 +217,14 @@ the code provides an interface for this via the cost function:
 
 also next time do profiling to test the memory bottleneck with ~17% gc
 
+ 
+
+
 
 =#
+
+
+
+
+
+

@@ -7,8 +7,9 @@ using Timers
 using FLORIDyn, TerminalPager, DistributedNext
 if Threads.nthreads() == 1; using ControlPlots; end
 
-_ , vis_file = get_default_project()[2:3]
-settings_file = "data/CONTROLTEST_VEER.yaml"   #custom data file with veer specification
+#_ , vis_file = get_default_project()[2:3]
+vis_file = "data/vis_54T.yaml"
+settings_file = "data/REALWF_CONTROLTEST_VEER.yaml"   #custom data file with veer specification
 
 vis = Vis(vis_file)
 vis.show_plots = false  # Enable/disable showing plots during simulation
@@ -45,7 +46,7 @@ x = result.minimizer
 wf, wind, sim, con, floris = prepareSimulation(set, wind, con, floridyn, floris, ta, sim)
 toc()
 
-con.yaw_data = construct_yaw_matrix_dynamic_individual_switches(x, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
+con.yaw_data = construct_yaw_matrix_dynamic(x, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
 
 vis.online = true
 # Clean up any existing PNG files in video folder before starting
