@@ -58,9 +58,9 @@ vis.online = false
 set_num_yaw_changes = 4 #N
 set_max_yaw_rate = 1.0 #deg/s
 set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
-#set_num_optimiser_runs = 1  #number of automatic restarts for CMA-ES, unused at the moment
+set_num_optimiser_runs = 3  #number of automatic restarts for CMA-ES
 set_sigma0 =  0.03 # 0.01 works well!!          # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
-set_lambda_l1 = 1e3 #1e3  #units: cost PER DEGREE, per turbine, PER SECOND 
+set_lambda_l1 = 0.0 #1e3  #units: cost PER DEGREE, per turbine, PER SECOND 
                         #relative to the beneficial term average kW per turbine 
                         #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf #a limit on the maximum total yaw change in a simulation, in degrees
@@ -68,12 +68,8 @@ set_lambda_l1_hard_limit = Inf #a limit on the maximum total yaw change in a sim
 
 
 
-
-
 # set cost function
 cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris)
-
-
 
 #AAAAAAAAA
 #make some code around this to edit the general setttings to first do a crude search for the time 
@@ -117,8 +113,8 @@ opts = Evolutionary.Options(
 lower_bounds = vcat(zeros(set_num_yaw_changes-1))   #,    -10 * ones(set_num_yaw_changes * wf.nT))
 upper_bounds = vcat(ones(set_num_yaw_changes-1))  #,      10 * ones(set_num_yaw_changes * wf.nT))
 
-
-
+println("Starting CMA-ES run 1")
+println("sigma0=$set_sigma0, lambda=$set_lambda, mu=$set_mu")
 
 @time result =  Evolutionary.optimize(cost_func,
                                 BoxConstraints(lower_bounds, upper_bounds),
@@ -136,6 +132,38 @@ upper_bounds = vcat(ones(set_num_yaw_changes-1))  #,      10 * ones(set_num_yaw_
 
 
 
+
+
+#secondary runs with other options as well
+for run in 2:set_num_optimiser_runs
+    
+
+    #hyperparams
+    local_set_lambda_multiplier = set_lambda_multiplier #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+    local_set_lambda0 = set_lambda0 
+    local_set_lambda = set_lambda
+    local_set_mu = set_mu
+
+    #reduce sigma
+    local_set_sigma0 = set_sigma0 / 3.0 
+
+    #print
+    println()   
+    println("Starting CMA-ES run $run")
+    println("sigma0=$local_set_sigma0, lambda=$local_set_lambda and mu=$local_set_mu")
+
+    #set new initial guess and reinitialise cov matrix
+    local_x0 = result.minimizer
+    @time global result =  Evolutionary.optimize(cost_func,        
+                                BoxConstraints(lower_bounds, upper_bounds),
+                                local_x0, 
+                                CMAES(  lambda = local_set_lambda,
+                                        mu = local_set_mu,
+                                        sigma0 = local_set_sigma0),
+                                opts)
+
+
+end
 
 
 
@@ -178,10 +206,23 @@ plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
 #include("get_energy.jl")  #for energy tests
 #include("controller_output.jl")   #to see and plot controller angles
 
+println()
+
+include("calculate_increase_over_baseline.jl")  #to calculate the increase over baseline for the optimised case, compared to a baseline case with no yawing
 
 
 
 
+println()
+println("-----------------------")
+
+
+
+
+
+
+
+#notes--------------------------------------------------------------------------------
 
 #=
 AAAAAAA        
