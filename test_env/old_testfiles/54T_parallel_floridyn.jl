@@ -2,16 +2,14 @@ using Timers
 using Evolutionary
 using OhMyThreads: TaskLocalValue
 using Infiltrator
-using Profile
-using BenchmarkTools
 using FLORIDyn, TerminalPager, DistributedNext 
 if Threads.nthreads() == 1; using ControlPlots; end
 
 
 #get the visualisation and settings
 #_ , vis_file = get_default_project()[2:3]
-vis_file = "data/vis_default.yaml"
-settings_file = "data/REALWF_CONTROLTEST_VEER.yaml"   #custom data file with veer specification
+vis_file = "data/vis_54T.yaml"
+settings_file = "data/REALWF_54T_CONTROLTEST_VEER.yaml"   #custom data file with veer specification
 vis = Vis(vis_file)
 plt=nothing
 
@@ -43,19 +41,18 @@ vis.online = false
 
 
 #optimisation constraints
-set_num_yaw_changes = 4  #N
-set_num_optimiser_runs = 2  #number of automatic restarts for CMA-ES
+set_num_yaw_changes = 6  #N
+set_num_optimiser_runs = 3  #number of automatic restarts for CMA-ES
 set_max_yaw_rate = 1.0 #deg/s
-set_sigma0 =  0.05         # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
-set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
+set_sigma0 =  0.02         # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
+set_max_yaw_misalignment = 45.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
 set_lambda_l1 = 0.0 #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf #a limit on the maximum total yaw change in a simulation, in degrees
-set_desired_power_curve = ones(sim.n_sim_steps) * 50     #
+
 
 
 
 # set cost function
-
 cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 
 
@@ -64,16 +61,15 @@ x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)   #x0 = result.m
                         
 
 #hyperparams
-set_lambda_multiplier = 4 #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+set_lambda_multiplier = 3 #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
 set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes-1)))      / 2.0   )   #half the offspring 
 set_lambda = Int(set_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
 
 
-
 #opts
 opts = Evolutionary.Options( 
-    iterations = 50,
+    iterations = 150,
     abstol = 1e-8,
     reltol = 1e-8,
     show_trace = true,
@@ -94,7 +90,6 @@ println("sigma0=$set_sigma0, lambda=$set_lambda, mu=$set_mu")
 
 
 begin_time = time()
-GC.gc() #speed up?
 @time result =  Evolutionary.optimize(cost_func,
                                 BoxConstraints(lower_bounds, upper_bounds),
                                 x0, 
@@ -115,7 +110,7 @@ for run in 2:set_num_optimiser_runs
     local_set_lambda = set_lambda
     local_set_mu = set_mu
 
-    #reduce sigma to stay in local region
+    #reduce sigma
     local_set_sigma0 = 0.01
 
     #print
@@ -125,7 +120,6 @@ for run in 2:set_num_optimiser_runs
 
     #set new initial guess and reinitialise cov matrix
     local_x0 = result.minimizer
-    GC.gc() #speed up?
     @time global result =  Evolutionary.optimize(cost_func,        
                                 BoxConstraints(lower_bounds, upper_bounds),
                                 local_x0, 
@@ -133,6 +127,8 @@ for run in 2:set_num_optimiser_runs
                                         mu = local_set_mu,
                                         sigma0 = local_set_sigma0),
                                 opts)
+
+
 end
 
 

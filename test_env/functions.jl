@@ -213,36 +213,48 @@ function generate_initial_guess(sim, wind, wf, n_segments)
     return vcat(time_guesses, yaw_guesses)
 end
 
+
 @inline function l1_norm_penalty(yaws)
-    # Calculate the L1 norm of the yaw angles, currently farm total
-    return sum(abs.(yaws[1:end-1, :] - yaws[2:end, :] )) / wf.nT / (sim.end_time - sim.start_time + 1)  # Normalize by number of turbines and time
+    rows, cols = size(yaws)
+    total_sum = 0.0
+    
+    # Iterate column-first (Julia is column-major, this is faster)
+    @inbounds for j in 1:cols
+        for i in 1:(rows - 1)
+            # Accessing indices directly avoids creating slices or intermediate arrays
+            total_sum += abs(yaws[i, j] - yaws[i+1, j])
+        end
+    end
+    
+    return total_sum / wf.nT / (sim.end_time - sim.start_time + 1)
 end
-
-
 
 
 #cost function with parallel
 function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
+    
     tlv = TaskLocalValue{NamedTuple}() do
         (
             plt=deepcopy(plt), set=deepcopy(set), wf=deepcopy(wf),
             wind=deepcopy(wind), sim=deepcopy(sim), floris=deepcopy(floris),
-            floridyn=deepcopy(floridyn), vis=deepcopy(vis), con=deepcopy(con)
+            floridyn=deepcopy(floridyn), vis=deepcopy(vis), con=deepcopy(con),
+            general_purpose_buffer = zeros(wf.nT)
         )
     end
     
     return function cost(x)
         state = tlv[]
         penalty_term = 0.0
-
+    
 
         #yaw matrix construction
+        
         yaws_with_time = construct_yaw_matrix_dynamic(x, state.sim, state.wf, set_num_yaw_changes, set_max_yaw_rate)
         
         #get data for penalty function
-        sim_times = yaws_with_time[:, 1]
-        yaws_only =  yaws_with_time[:, 2:end] # All turbines
-        wind_table =  state.wind.dir          
+        sim_times = @view yaws_with_time[:, 1]
+        yaws_only = @view yaws_with_time[:, 2:end] # All turbines
+        wind_table = state.wind.dir          
         
         #check yaw alignment
         max_violation = 0.0
@@ -258,12 +270,21 @@ function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis
         end
 
         #check maximum yaw l1 of change, of any turbine
-        yaw_changes = zeros(wf.nT)
-        for i in 1:wf.nT #for each turbine
-            yaw_changes[i] = sum(abs.(yaws_only[1:end-1, i] - yaws_only[2:end, i]))
+        # Check maximum yaw L1 change (Zero Allocations)
+        num_rows = size(yaws_only, 1)
+        
+        for j in 1:wf.nT # For each turbine (column)
+            acc = 0.0
+            @inbounds for i in 1:(num_rows - 1)
+                # Access indices directly to avoid slicing and temporary arrays
+                acc += abs(yaws_only[i, j] - yaws_only[i+1, j])
+            end
             
-            if yaw_changes[i] > set_lambda_l1_hard_limit #unacceptable yaw path, too much
-                return 1e3 + (yaw_changes[i] - set_lambda_l1_hard_limit)^2 * 1000.0
+            # Store the result in our preallocated buffer from TaskLocalValue
+            state.general_purpose_buffer[j] = acc
+            
+            if acc > set_lambda_l1_hard_limit 
+                return 1e3 + (acc - set_lambda_l1_hard_limit)^2 * 1000.0
             end
         end
 
@@ -289,10 +310,10 @@ function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis
             )
             
             
-            #can add more complex term here
-            #is now set to total energy
-            return -sum(md.PowerGen) / (wf.nT * sim.n_sim_steps) * 1000.0 + penalty_term  #in kW per turbine
+            #objective
 
+            return totalEnergyObjective(md) + penalty_term  #in kW per turbine
+            #return powerTrackingObjective(md) + penalty_term
 
 
 
@@ -312,6 +333,34 @@ end
 
 
 
+#objectivefunctions
+@inline function totalEnergyObjective(md)
+    return -sum(md.PowerGen) / (wf.nT * sim.n_sim_steps) * 1000.0   #in kW per turbine
+    
+end
+
+
+function powerTrackingObjective(md)
+    #some kind of way to track a power curve by returning the l2 norm of the difference between the power curve and the actual power generated, normalized by the number of turbines and time steps
+    #(and plot... add plotting scripts) 
+
+    power_per_step = zeros(sim.n_sim_steps)
+    for k in 1:sim.n_sim_steps
+    acc = 0.0
+    offset = (k - 1) * wf.nT
+    @inbounds for j in 1:wf.nT
+        acc += md.PowerGen[offset + j]
+            end
+    power_per_step[k] = acc
+    end
+
+    return norm(power_per_step - set_desired_power_curve) / (wf.nT * sim.n_sim_steps)
+end
+
+
+
+
+
 
 
 
@@ -321,6 +370,8 @@ but this makes the optim. problem too hard, and having a common switching time
 leads to better results.
 
 """
+
+
 
 # cost function with for individual turbine switching plus trycatch for misalignment
 function parallel_costfunction_individual_switches(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
@@ -488,12 +539,17 @@ end
 
 
 
+#old: --------------------------------------------------------------------------------------
+
 
 
 #"testing area inside testing area"----------------------------------------------------------------------------
 
 
-
+@inline function l1_norm_penalty_slow(yaws)
+    # Calculate the L1 norm of the yaw angles, currently farm total
+    return sum(abs.(yaws[1:end-1, :] - yaws[2:end, :] )) / wf.nT / (sim.end_time - sim.start_time + 1)  # Normalize by number of turbines and time
+end
 
 
 
