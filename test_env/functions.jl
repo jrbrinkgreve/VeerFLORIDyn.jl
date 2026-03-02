@@ -230,8 +230,9 @@ end
 end
 
 
-#cost function with parallel
-function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
+
+#cost function structure with parallel, and constraint handling
+function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris, objective)
     
     tlv = TaskLocalValue{NamedTuple}() do
         (
@@ -273,7 +274,7 @@ function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis
         # Check maximum yaw L1 change (Zero Allocations)
         num_rows = size(yaws_only, 1)
         
-        for j in 1:wf.nT # For each turbine (column)
+        @inbounds for j in 1:wf.nT # For each turbine (column)
             acc = 0.0
             @inbounds for i in 1:(num_rows - 1)
                 # Access indices directly to avoid slicing and temporary arrays
@@ -284,7 +285,7 @@ function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis
             state.general_purpose_buffer[j] = acc
             
             if acc > set_lambda_l1_hard_limit 
-                return 1e3 + (acc - set_lambda_l1_hard_limit)^2 * 1000.0
+                return 1e6 + (acc - set_lambda_l1_hard_limit)^2 * 1000.0
             end
         end
 
@@ -293,7 +294,7 @@ function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis
         #in case turbines are misaligned too strongly  
         if max_violation > 0
             # Quadratic penalty creates a smooth "slope" leading back to 0 violation
-            return 1e3 + (max_violation^2 * 1000.0)
+            return 1e6 + (max_violation^2 * 1000.0)
         end
 
         #any other constraint code:
@@ -312,7 +313,7 @@ function parallel_costfunction(plt, set, wf::WindFarm, wind::Wind, sim, con, vis
             
             #objective
 
-            return totalEnergyObjective(md) + penalty_term  #in kW per turbine
+            return objective(md) + penalty_term  #in kW per turbine
             #return powerTrackingObjective(md) + penalty_term
 
 
@@ -333,8 +334,11 @@ end
 
 
 
+
+
 #objectivefunctions
 @inline function totalEnergyObjective(md)
+
     return -sum(md.PowerGen) / (wf.nT * sim.n_sim_steps) * 1000.0   #in kW per turbine
     
 end
@@ -353,8 +357,8 @@ function powerTrackingObjective(md)
             end
     power_per_step[k] = acc
     end
-
-    return norm(power_per_step - set_desired_power_curve) / (wf.nT * sim.n_sim_steps)
+    
+    return norm(power_per_step - set_desired_power_curve) / (wf.nT * sim.n_sim_steps) * 1000 #rms error in kW per turbine
 end
 
 
@@ -374,74 +378,109 @@ leads to better results.
 
 
 # cost function with for individual turbine switching plus trycatch for misalignment
-function parallel_costfunction_individual_switches(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris)
-    # Task-local storage to prevent race conditions during parallel optimization
+function parallel_costfunction_individual_switches(plt, set, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris, objective)
     tlv = TaskLocalValue{NamedTuple}() do
         (
             plt=deepcopy(plt), set=deepcopy(set), wf=deepcopy(wf),
             wind=deepcopy(wind), sim=deepcopy(sim), floris=deepcopy(floris),
-            floridyn=deepcopy(floridyn), vis=deepcopy(vis), con=deepcopy(con)
+            floridyn=deepcopy(floridyn), vis=deepcopy(vis), con=deepcopy(con),
+            general_purpose_buffer = zeros(wf.nT)
         )
     end
     
     return function cost(x)
         state = tlv[]
+        penalty_term = 0.0
+    
+
+        #yaw matrix construction
         
-        # 1. Construct the turbine-specific yaw matrix
-        # This already accounts for individual switching times and yaw rate limits
         yaws_with_time = construct_yaw_matrix_dynamic_individual_switches(x, state.sim, state.wf, set_num_yaw_changes, set_max_yaw_rate)
         
-        sim_times = yaws_with_time[:, 1]
-        yaws_only = yaws_with_time[:, 2:end] 
-        wind_table = state.wind.dir           
-        
-        # 2. Calculate Maximum Relative Yaw Violation across all turbines and time
+        #get data for penalty function
+        sim_times = @view yaws_with_time[:, 1]
+        yaws_only = @view yaws_with_time[:, 2:end] # All turbines
+        wind_table = state.wind.dir          
+    
+        #check yaw alignment
         max_violation = 0.0
-        
-        for (i, t) in enumerate(sim_times)
-            # Get the global wind direction at this timestamp
+        @inbounds for (i, t) in enumerate(sim_timeAAAAAAAA)  
+            #AAAAAAAAAAAAAAAA    note: crashing caused by wrong time retrieval
+            #detect changes from delta yaw matrix
+            #retrieve timestamps from there
+            #then insert those timestamps into the code below to detects yaw misalignment more accurately
             current_wind_dir = get_wind_at_t(t, wind_table)
           
-            @inbounds for j in 1:state.wf.nT
-                # Calculate shortest angular difference (handles 0/360 wrap-around)
-                # Formula: (diff + 180) % 360 - 180
-                diff = yaws_only[i, j] - current_wind_dir
-                rel_yaw = abs(mod(diff + 180.0, 360.0) - 180.0)
-                
-                # Update max_violation if this turbine/time-step exceeds 85 degrees
-                max_violation = max(max_violation, rel_yaw - 85.0)
+            # Check all turbines at this specific second
+            @inbounds for turbine_idx in 1:wf.nT
+                rel_yaw = abs(yaws_only[i, turbine_idx] - current_wind_dir)
+                # Keep track of the worst offender across all turbines and time steps
+                max_violation = max(max_violation, rel_yaw - set_max_yaw_misalignment)
             end
         end
 
-        # 3. Penalty Branch (Numerical Stability Guard)
-        # If any turbine at any time exceeds 85° misalignment, we abort the simulation
-        # and return a high penalty value to steer the optimizer away.
+        #check maximum yaw l1 of change, of any turbine
+        # Check maximum yaw L1 change (Zero Allocations)
+        num_rows = size(yaws_only, 1)
+        
+        @inbounds for j in 1:wf.nT # For each turbine (column)
+            acc = 0.0
+            @inbounds for i in 1:(num_rows - 1)
+                # Access indices directly to avoid slicing and temporary arrays
+                acc += abs(yaws_only[i, j] - yaws_only[i+1, j])
+            end
+            
+            # Store the result in our preallocated buffer from TaskLocalValue
+            state.general_purpose_buffer[j] = acc
+            
+            if acc > set_lambda_l1_hard_limit 
+                return 1e6 + (acc - set_lambda_l1_hard_limit)^2 * 1000.0 #make sure this is never lower than actual objective
+            end
+        end
+
+
+
+        #in case turbines are misaligned too strongly  
         if max_violation > 0
+            # Quadratic penalty creates a smooth "slope" leading back to 0 violation
             return 1e6 + (max_violation^2 * 1000.0)
         end
 
-        # 4. Feasible Branch (Run the actual simulation)
+        #any other constraint code:
+        penalty_term = penalty_term + set_lambda_l1 * l1_norm_penalty(yaws_only)
+
+
+
+        #otherwise
         try
             state.con.yaw_data = yaws_with_time
-            wf_res, md, mi = run_floridyn(
+            wf, md, mi = run_floridyn(
                 state.plt, state.set, state.wf, state.wind, 
                 state.sim, state.con, state.vis, state.floridyn, state.floris
             )
             
-            # Objective: Maximize power (minimize negative power)
-            # Normalized by number of turbines and steps for consistent scaling
-            avg_power_kw = sum(md.PowerGen) / (state.wf.nT * state.sim.n_sim_steps)
-            return -avg_power_kw * 1000.0 
+            
+            #objective
+
+            return objective(md) + penalty_term  #in kW per turbine
+            #return powerTrackingObjective(md) + penalty_term
+
+
 
         catch e
+            # 1. If the user hits Ctrl+C, let it happen!
             if e isa InterruptException 
                 rethrow(e)
             end
-            #@warn "Simulation failed for current x, returning penalty."
-            return 2e6 
+            if e isa ArgumentError #memory errors for Evolutionary.jl, fall under this
+                rethrow(e)
+            end
+            return 2e6 # Fallback for unexpected failures
         end
     end
 end
+
+
 
 # time-dependent yaw matrix construction (Individual Turbine Switching)
 function construct_yaw_matrix_dynamic_individual_switches(x, sim, wf, num_yaw_changes, max_yaw_rate)
@@ -491,8 +530,8 @@ function construct_yaw_matrix_dynamic_individual_switches(x, sim, wf, num_yaw_ch
 
     # Enforce yaw rate limits (in-place modification)
     apply_yaw_rate_limit!(yaws, max_yaw_rate)
-
     return hcat(sim.start_time:sim.end_time, yaws)
+
 end
 
 

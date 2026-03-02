@@ -4,6 +4,7 @@ using OhMyThreads: TaskLocalValue
 using Infiltrator
 using Profile
 using BenchmarkTools
+using LinearAlgebra
 using FLORIDyn, TerminalPager, DistributedNext 
 if Threads.nthreads() == 1; using ControlPlots; end
 
@@ -43,24 +44,25 @@ vis.online = false
 
 
 #optimisation constraints
-set_num_yaw_changes = 4  #N
-set_num_optimiser_runs = 2  #number of automatic restarts for CMA-ES
+set_num_yaw_changes = 8  #N
+set_num_optimiser_runs = 3  #number of automatic restarts for CMA-ES
 set_max_yaw_rate = 1.0 #deg/s
 set_sigma0 =  0.05         # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
 set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
 set_lambda_l1 = 0.0 #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf #a limit on the maximum total yaw change in a simulation, in degrees
-set_desired_power_curve = ones(sim.n_sim_steps) * 50     #
+set_desired_power_curve = ones(sim.n_sim_steps) *  40   #find a way to elegantly match   #these numbers! 
+set_objective = powerTrackingObjective      #totalEnergyObjective or powerTrackingObjective 
+
 
 
 
 # set cost function
-
-cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris)
+cost_func = parallel_costfunction_individual_switches(plt, set, wf, wind, sim, con, vis, floridyn, floris, set_objective)
 
 
 #initial state
-x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)   #x0 = result.minimizer  #start from previous result also possible
+x0 = generate_initial_guess_individual_switches(sim, wind, wf, set_num_yaw_changes)   #x0 = result.minimizer  #start from previous result also possible
                         
 
 #hyperparams
@@ -85,8 +87,8 @@ opts = Evolutionary.Options(
 
 #constraints
 #limit normalised time to [0,1], yaws are free after adding try/catch
-lower_bounds = vcat(zeros(set_num_yaw_changes-1))   #,    -10 * ones(set_num_yaw_changes * wf.nT))
-upper_bounds = vcat(ones(set_num_yaw_changes-1))  #,      10 * ones(set_num_yaw_changes * wf.nT))
+lower_bounds = vcat(zeros(set_num_yaw_changes-1)*wf.nT)   #,    -10 * ones(set_num_yaw_changes * wf.nT))
+upper_bounds = vcat(ones(set_num_yaw_changes-1)*wf.nT)  #,      10 * ones(set_num_yaw_changes * wf.nT))
 
 println("Starting CMA-ES run 1")
 println("sigma0=$set_sigma0, lambda=$set_lambda, mu=$set_mu")
@@ -94,7 +96,6 @@ println("sigma0=$set_sigma0, lambda=$set_lambda, mu=$set_mu")
 
 
 begin_time = time()
-GC.gc() #speed up?
 @time result =  Evolutionary.optimize(cost_func,
                                 BoxConstraints(lower_bounds, upper_bounds),
                                 x0, 
@@ -125,7 +126,7 @@ for run in 2:set_num_optimiser_runs
 
     #set new initial guess and reinitialise cov matrix
     local_x0 = result.minimizer
-    GC.gc() #speed up?
+
     @time global result =  Evolutionary.optimize(cost_func,        
                                 BoxConstraints(lower_bounds, upper_bounds),
                                 local_x0, 
@@ -184,11 +185,10 @@ println()
 
 include("calculate_increase_over_baseline.jl")  #to calculate the increase over baseline for the optimised case, compared to a baseline case with no yawing
 
-println()
-if result.minimum > 0
-    println("ERROR: optimisation did not converge")
-end
-println("-----------------------")
+
+
+
+
 
 
 
@@ -199,23 +199,21 @@ println("-----------------------")
 #notes--------------------------------------------------------------------------------
 
 #=
-AAAAAAA        
-#the idea is now to limit the yaw angles explored by the optimiser: limit them from max.
-#+/- 90 deg from current wind direction
 
 
 
 
 
 
+#=   for power maximisation: objective > 0 means failure as problem is not feasible
+println()
+if result.minimum > 0
+    println("ERROR: optimisation did not converge")
+end
+println("-----------------------")
+=#
 
 
-I think something is wrong with the multithreading is a bit off,
-as the globally best result is not returned while calling get_energy.jl
-
-#include automatic IPOP restart strategies for CMA-ES to get out of local minima?
-
-#----------------------------------------------------------------------------------
 
 also some more notes:
 20 feb 2026
