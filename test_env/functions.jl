@@ -745,15 +745,149 @@ end
 
 
 #testing area inside testing area----------------------------------------------------------------------------
+#axial 
+
+function construct_axial_induction_matrix_dynamic!(buffer, x, sim, wf, num_a_changes)
+    num_steps = size(buffer, 1)
+    duration = sim.end_time - sim.start_time
+    
+    # 1. Fill the first column with timestamps (in-place)
+    @inbounds for j in 1:num_steps
+        buffer[j, 1] = sim.start_time + (j - 1)
+    end
+
+    # Handle Constant Axial Induction (1 segment)
+    if num_a_changes == 1
+        for j in 1:wf.nT
+            # Assuming x[j] is the induction factor (e.g., 0.33)
+            val = x[j] 
+            col_idx = j + 1
+            @inbounds for i in 1:num_steps
+                buffer[i, col_idx] = val
+            end
+        end
+        return nothing
+    end
+
+    # 2. Process Dynamic Segments
+    current_row = 1
+    for i in 1:num_a_changes
+        # Determine end_row for this time segment
+        if i < num_a_changes
+            # x[i] contains the normalized timestamp (0.0 to 1.0)
+            end_row = round(Int, x[i] * duration) + 1
+        else
+            end_row = num_steps
+        end
+        
+        # Safeguard row range
+        end_row = clamp(end_row, current_row, num_steps)
+        
+        if current_row <= end_row
+            for j in 1:wf.nT
+                # Indexing: (Time params) + (segment_idx * nT) + turbine_idx
+                flat_idx = (num_a_changes - 1) + (i - 1) * wf.nT + j
+                val = x[flat_idx]
+                
+                col_idx = j + 1
+                @inbounds for row_idx in current_row:end_row
+                    buffer[row_idx, col_idx] = val
+                end
+            end
+        end
+        current_row = end_row + 1
+        if current_row > num_steps break end
+    end
+
+    return nothing
+end
 
 
 
 
 
 
+#main cost function
+function test_costfunction_aic(plt, set::Settings, wf::WindFarm, wind::Wind, sim::Sim, con::Con, vis::Vis, floridyn::FloriDyn, floris::Floris, objective)
+    
+    return function cost(x)
+        state = tlv[]
+        penalty_term = 0.0
+    
+        #to test AIC: make yaw matrix construction static
+        static_yaw_matrix = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)  #generate a static yaw matrix for testing purposes, to isolate the effect of axial induction control on the cost function and gradients 
+         
+        #yaw matrix construction
+        construct_yaw_matrix_dynamic!(state.con.yaw_data, static_yaw_matrix, state.sim, state.wf, set_num_yaw_changes, set_max_yaw_rate)
+        
+        #get data for penalty function
+        sim_times = @view state.con.yaw_data[:, 1]
+        yaws_only = @view state.con.yaw_data[:, 2:end] # All turbines   
+        
+        #get full wind direction matrix
+        fill_wind_dir_buffer!(state.wind_dirs_buffer, sim_times, state.wind.dir)
+
+
+        #generate axial induction matrix
+        #@infiltrate
+        construct_axial_induction_matrix_dynamic!(state.con.induction_data, x, state.sim, state.wf, set_num_a_changes)
+        
+
+        #handle soft and hard constraints
+        penalty_term = calculate_penalties(yaws_only, state.wind_dirs_buffer)
+        
+        #detect if penalty term exceeds hard limit, and if so return it directly to avoid unnecessary simulations
+        if penalty_term >= 1e6
+            return penalty_term
+        end
+        
+        #otherwise
+        try
+            wf, md, mi = run_floridyn(
+                state.plt, state.set, state.wf, state.wind, 
+                state.sim, state.con, state.vis, state.floridyn, state.floris
+            )
+            
+            
+            #objective
+
+            return objective(md) + penalty_term  #in kW per turbine
+            #return powerTrackingObjective(md) + penalty_term
 
 
 
+        catch e
+            # 1. If the user hits Ctrl+C, let it happen!
+            if e isa InterruptException 
+                rethrow(e)
+            end
+            if e isa ArgumentError #memory errors for Evolutionary.jl, fall under this
+                rethrow(e)
+            end
+            return 2e6 # Fallback for unexpected failures
+        end
+    end
+end
 
 
+function generate_initial_guess_aic(sim, wind, wf, n_segments)
+    # Handle the constant induction case (1 segment)
+    if n_segments == 1
+        return fill(set_initial_a_value, wf.nT)
+    end
 
+    # 1. Internal transition times (normalized 0 to 1)
+    # This creates [0.0, 0.25, 0.5, 0.75, 1.0] for n_segments = 4
+    equal_time_spacing = collect(0:1/n_segments:1)
+    
+    # Extract only the internal knots (e.g., [0.25, 0.5, 0.75])
+    time_guesses = equal_time_spacing[2:end-1]
+    
+    # 2. Induction factor guesses
+    # We need a value for every turbine (nT) in every time segment (n_segments)
+    num_vals = n_segments * wf.nT
+    a_guesses = fill(Float64(set_initial_a_value), num_vals)
+    
+    # Concatenate: [timestamps..., induction_values...]
+    return vcat(time_guesses, a_guesses)
+end

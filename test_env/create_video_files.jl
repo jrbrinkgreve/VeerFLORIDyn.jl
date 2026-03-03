@@ -45,8 +45,12 @@ x = result.minimizer
 
 wf, wind, sim, con, floris = prepareSimulation(set, wind, con, floridyn, floris, ta, sim)
 toc()
+con.yaw_data = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1) #preallocate yaw matrix with zeros to prevent error on 'nothing'
+#con.induction_data = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1) #preallocate induction matrix with zeros to prevent error on 'nothing'
 
-con.yaw_data = construct_yaw_matrix_dynamic(x, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
+
+construct_yaw_matrix_dynamic!(con.yaw_data, x, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
+
 
 vis.online = true
 # Clean up any existing PNG files in video folder before starting

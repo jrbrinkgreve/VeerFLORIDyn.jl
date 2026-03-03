@@ -1,7 +1,5 @@
 #plotting the power:
 
-
-
 using Plots
 
 
