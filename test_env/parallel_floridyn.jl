@@ -27,42 +27,52 @@ set = Settings(wind, sim, con, false, false)
 set.enable_veer = true
 set.control_mode = Yaw_Optimisation();
 wf, wind, sim, con, floris = prepareSimulation(set, wind, con, floridyn, floris, ta, sim);
-
+con.yaw_data = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1) #preallocate yaw matrix with zeros to prevent error on 'nothing'
 #run initial conditions
 wf = initSimulation(wf, sim);
 
 #disable online visualisation
 vis.online = false 
 
+
+#thread-safety for parallel execution     
+if !@isdefined(tlv)
+    const tlv = TaskLocalValue{NamedTuple}() do
+        (
+            plt=deepcopy(plt), set=deepcopy(set), wf=deepcopy(wf),
+            wind=deepcopy(wind), sim=deepcopy(sim), floris=deepcopy(floris),
+            floridyn=deepcopy(floridyn), vis=deepcopy(vis), con=deepcopy(con),
+            
+            yaws_with_time_buffer = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1), #preallocate buffer for yaw matrix to avoid allocations in construct_yaw_matrix_dynamic
+            wind_dirs_buffer = zeros(sim.end_time - sim.start_time + 1) #preallocate buffer for wind directions at each time step to avoid allocations in get_wind_at_t
+        )
+    end
+end
 #------------------------------------------------------------------------------------------------------------
 #OPTIMISATION PART
 
 
-
-
-
-
-
 #optimisation constraints
-set_num_yaw_changes = 8  #N
-set_num_optimiser_runs = 3  #number of automatic restarts for CMA-ES
+set_num_yaw_changes = 4  #N
+set_num_optimiser_runs = 3 #number of automatic restarts for CMA-ES
 set_max_yaw_rate = 1.0 #deg/s
 set_sigma0 =  0.05         # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
-set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
+set_max_yaw_misalignment = 45.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
 set_lambda_l1 = 0.0 #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf #a limit on the maximum total yaw change in a simulation, in degrees
-set_desired_power_curve = ones(sim.n_sim_steps) *  40   #find a way to elegantly match   #these numbers! 
+set_desired_power_curve = ones(sim.n_sim_steps) *  60.0  #find a way to elegantly match these numbers! 
 set_objective = powerTrackingObjective      #totalEnergyObjective or powerTrackingObjective 
+#set_individual_turbine_switching = false  #whether to allow individual turbine switching or only simultaneous switching, for simplicity we will stick with simultaneous switching for now, and can report about this in the thesis
 
 
 
 
 # set cost function
-cost_func = parallel_costfunction_individual_switches(plt, set, wf, wind, sim, con, vis, floridyn, floris, set_objective)
 
+cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris, set_objective)
 
 #initial state
-x0 = generate_initial_guess_individual_switches(sim, wind, wf, set_num_yaw_changes)   #x0 = result.minimizer  #start from previous result also possible
+x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)   #x0 = result.minimizer  #start from previous result also possible
                         
 
 #hyperparams
@@ -72,10 +82,9 @@ set_lambda = Int(set_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
 
 
-
 #opts
 opts = Evolutionary.Options( 
-    iterations = 50,
+    iterations = 40,
     abstol = 1e-8,
     reltol = 1e-8,
     show_trace = true,
@@ -87,8 +96,8 @@ opts = Evolutionary.Options(
 
 #constraints
 #limit normalised time to [0,1], yaws are free after adding try/catch
-lower_bounds = vcat(zeros(set_num_yaw_changes-1)*wf.nT)   #,    -10 * ones(set_num_yaw_changes * wf.nT))
-upper_bounds = vcat(ones(set_num_yaw_changes-1)*wf.nT)  #,      10 * ones(set_num_yaw_changes * wf.nT))
+lower_bounds = vcat(zeros(set_num_yaw_changes-1))   #,    -10 * ones(set_num_yaw_changes * wf.nT))
+upper_bounds = vcat(ones(set_num_yaw_changes-1))  #,      10 * ones(set_num_yaw_changes * wf.nT))
 
 println("Starting CMA-ES run 1")
 println("sigma0=$set_sigma0, lambda=$set_lambda, mu=$set_mu")
@@ -109,7 +118,7 @@ begin_time = time()
 
 #secondary runs with other options as well
 for run in 2:set_num_optimiser_runs
-    
+
     #hyperparams
     local_set_lambda_multiplier = set_lambda_multiplier #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
     local_set_lambda0 = set_lambda0 
@@ -190,9 +199,8 @@ include("calculate_increase_over_baseline.jl")  #to calculate the increase over 
 
 
 
-
-
-
+#after all is done, perform GC already
+GC.gc()
 
 
 

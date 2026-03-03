@@ -164,6 +164,10 @@ end
 
 
 
+#3 march : replaced function by allocationless version
+#time-dependent yaw matrix construction
+
+
 
 #------------------------------------------------------------------------------------------
 
