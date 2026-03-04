@@ -7,8 +7,11 @@ using BenchmarkTools
 using LinearAlgebra
 using FLORIDyn, TerminalPager, DistributedNext 
 if Threads.nthreads() == 1; using ControlPlots; end
-
-
+println()
+println("AAAAA note: launching dev branch")
+println("AAAAA note: launching dev branch")
+println("AAAAA note: launching dev branch")
+println()
 #get the visualisation and settings
 #_ , vis_file = get_default_project()[2:3]
 vis_file = "data/vis_default.yaml"

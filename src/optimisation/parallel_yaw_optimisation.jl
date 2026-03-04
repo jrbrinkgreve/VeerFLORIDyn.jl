@@ -8,9 +8,15 @@ using LinearAlgebra
 using FLORIDyn, TerminalPager, DistributedNext 
 if Threads.nthreads() == 1; using ControlPlots; end
 
+#region fold initialisation and setup
+
+
+
+
+
+
 
 #get the visualisation and settings
-#_ , vis_file = get_default_project()[2:3]
 vis_file = "data/vis_default.yaml"
 settings_file = "data/REALWF_CONTROLTEST_VEER.yaml"   #custom data file with veer specification
 vis = Vis(vis_file)
@@ -52,43 +58,43 @@ if !@isdefined(tlv)
     end
 end
 
+#endregion
 
 #------------------------------------------------------------------------------------------------------------
 #OPTIMISATION PART
 
-
-#optimisation constraints
+#sim 
 set_num_yaw_changes = 4  #N
-set_num_optimiser_runs = 2 #number of automatic restarts for CMA-ES
-set_max_yaw_rate = 1.0 #deg/s
-set_sigma0 =  0.05         # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
 set_max_yaw_misalignment = 45.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
 set_lambda_l1 = 0.0 #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf #a limit on the maximum total yaw change in a simulation, in degrees
+set_max_yaw_rate = 1.0 #deg/s
 set_objective = totalEnergyObjective      #totalEnergyObjective or powerTrackingObjective 
-#set_individual_turbine_switching = false  #whether to allow individual turbine switching or only simultaneous switching, for simplicity we will stick with simultaneous switching for now, and can report about this in the thesis
-#set_desired_power_curve = ones(sim.n_sim_steps) *  60.0  #find a way to elegantly match these numbers! 
+
+#optimiser convergence/ fidelity  
+set_cmaes_lambda_multiplier = 4 #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+set_num_optimiser_runs = 3 #number of automatic restarts for CMA-ES
+set_iterations = 50     #number of iterations for CMAES
+set_sigma0 = 0.05         # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
+set_sigma0_secondary = 0.01 #for second run with yaws, to reduce the search area and converge faster, can play around with this
 
 
+#region fold CMAES prep
 
 #initial state
 x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)   #x0 = result.minimizer  #start from previous result also possible
-                        
-
-
-#hyperparams
-set_lambda_multiplier = 2 #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
-set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes-1)))      / 2.0   )   #half the offspring 
-set_lambda = Int(set_lambda_multiplier * set_lambda0)
-set_mu = Int(round(set_lambda / 2))
-
-
+                    
 
 
 #efficient struct passing
 opt_set = OptimisationSettings(
     set_num_yaw_changes, set_num_optimiser_runs, set_max_yaw_rate, set_max_yaw_misalignment, set_lambda_l1, set_lambda_l1_hard_limit, set_objective
 )
+
+#hyperparams
+set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes-1)))      / 2.0   )   #half the offspring 
+set_lambda = Int(set_cmaes_lambda_multiplier * set_lambda0)
+set_mu = Int(round(set_lambda / 2))
 
 
 
@@ -98,7 +104,7 @@ cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, f
 
 #opts
 opts = Evolutionary.Options( 
-    iterations = 10,
+    iterations = set_iterations,
     abstol = 1e-8,
     reltol = 1e-8,
     show_trace = true,
@@ -108,13 +114,18 @@ opts = Evolutionary.Options(
 )
 
 
+
 #constraints
 #limit normalised time to [0,1], yaws are free after adding try/catch, a values are bound.
 lower_bounds = zeros(set_num_yaw_changes-1)
 upper_bounds = ones(set_num_yaw_changes-1)
-println("Starting CMA-ES run 1")
-println("sigma0=$set_sigma0, lambda=$set_lambda, mu=$set_mu")
+#endregion CMAES prep
 
+
+println()
+println("Starting CMAES run 1 / $set_num_optimiser_runs")
+println("σ_0 = $set_sigma0, λ = $set_lambda, μ = $set_mu")
+println()
 
 
 begin_time = time()
@@ -133,18 +144,19 @@ begin_time = time()
 for run in 2:set_num_optimiser_runs
 
     #hyperparams
-    local_set_lambda_multiplier = set_lambda_multiplier #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+    local_set_lambda_multiplier = set_cmaes_lambda_multiplier #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
     local_set_lambda0 = set_lambda0 
     local_set_lambda = set_lambda
     local_set_mu = set_mu
 
     #reduce sigma to stay in local region
-    local_set_sigma0 = 0.01
+    local_set_sigma0 = set_sigma0_secondary
 
     #print
     println()   
-    println("Starting CMA-ES run $run")
-    println("sigma0=$local_set_sigma0, lambda=$local_set_lambda, mu=$local_set_mu")
+    println("Starting CMAES run $run / $set_num_optimiser_runs")
+    println("σ_0 = $local_set_sigma0, λ = $local_set_lambda, μ = $local_set_mu")
+    println()
 
     #set new initial guess and reinitialise cov matrix
     local_x0 = result.minimizer
@@ -164,12 +176,11 @@ total_time = end_time - begin_time
 println()
 println("Total optimization time: $(round(total_time, digits=2)) seconds")
 
-
+#endregion CMAES
 
 #----------------------------------------------------------------------------------
 
-#PLOTTING & POSTPROCESSING
-
+#region PLOTTING & POSTPROCESSING
 
 
 
@@ -184,10 +195,6 @@ wind, sim, con, floris, floridyn, ta, tp = setup(settings_file)
 set = Settings(wind, sim, con, false, false)
 set.enable_veer = true
 set.control_mode = Yaw_Optimisation();
-
-#AAAAAAAAA note: if we keep a between 0.2 and 0.33, we can approximate with constant lambda of 7.6
-#meaning we can do axial induction control in this range without changing the code dynamics!!!
-# == TO DO FOR LATER
 
 #run initial conditions
 wf, wind, sim, con, floris = prepareSimulation(set, wind, con, floridyn, floris, ta, sim);
@@ -206,25 +213,17 @@ wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
 plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
 
-
-#include("get_energy.jl")  #for energy tests
-#include("controller_output.jl")   #to see and plot controller angles
-
 println()
 include("calculate_increase_over_baseline.jl")  #to calculate the increase over baseline for the optimised case, compared to a baseline case with no yawing
 
 
 
-
-
-
-#after all is done, perform GC already
 GC.gc()
 
+#endregion PLOTTING & POSTPROCESSING
 
 
 #notes--------------------------------------------------------------------------------
-
 #=
 
 
@@ -232,38 +231,16 @@ GC.gc()
 
 
 
-#=   for power maximisation: objective > 0 means failure as problem is not feasible
-println()
-if result.minimum > 0
-    println("ERROR: optimisation did not converge")
-end
-println("-----------------------")
-=#
 
 
 
-also some more notes:
-20 feb 2026
-individual turbine switching has a lower minimum but finding it is too hard for the optimiser,
-so we will stick with simultaneous switching for now, and can report about this in the thesis
 
 
 
-next steps are minimizing the l1 norm of the yaw actuation on top of the power maximisation. 
-the code provides an interface for this via the cost function:
-    max_yaw_misalignment is a way of penalising large yaw angles (also for stability)
-    
 
 
-also next time do profiling to test the memory bottleneck with ~17% gc
 
- 
-3 march:
-added axial induction control! but this type of control needs smoother adjustments of the A matrix as this leads to very spiky power.
-to run: 
 
-include parallel_floridyn.jl
-include test.jl
 
 
 
