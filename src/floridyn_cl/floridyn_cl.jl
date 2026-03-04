@@ -770,6 +770,7 @@ Runs a closed-loop wind farm simulation using the FLORIDyn and FLORIS models,
 applying control strategies and updating turbine states over time.
 
 """
+
 function runFLORIDyn(plt, set::Settings, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris; rmt_plot_fn=nothing, 
                           msr=VelReduction, debug=nothing)
     nT = wf.nT
@@ -864,6 +865,7 @@ function runFLORIDyn(plt, set::Settings, wf::WindFarm, wind::Wind, sim, con, vis
         sim_time += sim.time_step
     end
     # Convert `ma` to DataFrame and scale measurements
+
     md = DataFrame(
         (ma * diagm([1; 100; 100; 1; 1; 1e-6])),
         [:Time, :ForeignReduction, :AddedTurbulence, :EffWindSpeed, :FreeWindSpeed, :PowerGen]
@@ -895,4 +897,120 @@ function create_unified_buffers(wf::WindFarm, floris::Floris)
     end
     
     return create_unified_buffers(wf, n_rotor_points)
+end
+
+
+
+
+
+
+
+
+function runFLORIDyn_optimisation!(powergen_buffer, plt, set::Settings, wf::WindFarm, wind::Wind, sim, con, vis, floridyn, floris; rmt_plot_fn=nothing, 
+                          msr=VelReduction, debug=nothing)
+    nT = wf.nT
+    sim_steps = sim.n_sim_steps
+    ma = zeros(sim_steps * nT, 6)
+    ma[:, 1] .= 1.0  # Set first column to 1
+    vm_int   = Vector{Matrix{Float64}}(undef, sim_steps)
+
+    sim_time = sim.start_time
+    plot_state = nothing  # Initialize animation state
+    
+    buffers = FLORIDyn.IterateOPsBuffers(wf)
+    # Create unified buffers for all operations with FLORIS parameters
+    unified_buffers = create_unified_buffers(wf, floris)
+    # Create buffers for interpolateOPs! (will be resized as needed)
+    intOPs_buffers = [Matrix{Float64}(undef, 0, 4) for _ in 1:wf.nT]
+    
+    for it in 1:sim_steps
+        sim.sim_step = it
+
+        # ========== PREDICTION ==========
+        iterateOPs!(set.iterate_mode, wf, sim, floris, floridyn, buffers)
+
+        # ========== Wind Field Perturbation ==========
+        perturbationOfTheWF!(wf, wind)
+
+        # ========== Get FLORIS reductions ==========
+        wf.dep = findTurbineGroups(wf, floridyn)
+        if sim_steps == 1 && ! isnothing(debug)
+            debug[2] = deepcopy(wf)
+        end
+        begin
+            # Resize buffers if dependencies changed
+            for iT in 1:wf.nT
+                if size(intOPs_buffers[iT], 1) != length(wf.dep[iT])
+                    intOPs_buffers[iT] = zeros(length(wf.dep[iT]), 4)
+                end
+            end
+            interpolateOPs!(unified_buffers, intOPs_buffers, wf)
+            wf.intOPs = intOPs_buffers
+        end
+        if sim_steps == 1 && ! isnothing(debug)
+            debug[1] = deepcopy(wf)
+        end
+        setUpTmpWFAndRun!(unified_buffers, wf, set, floris, wind)
+        tmpM = unified_buffers.M_buffer
+
+        ma[(it - 1) * nT + 1 : it * nT, 2:4] .= @view tmpM[1:nT, :]
+        ma[(it - 1) * nT + 1 : it * nT, 1]   .= sim_time
+        wf.States_T[wf.StartI, 3] = tmpM[1:nT, 2]
+   
+        vm_int[it] = wf.red_arr
+
+        # ========== wind field corrections ==========
+        wf, wind = correctVel!(set.cor_vel_mode, set, wf, wind, sim_time, floris, @view(tmpM[1:nT, :]))
+        correctDir!(set.cor_dir_mode, set, wf, wind, sim_time)
+        correctTI!(set.cor_turb_mode, set, wf, wind, sim_time)
+
+        # Save free wind speed as measurement
+        ma[(it-1)*nT+1 : it*nT, 5] = wf.States_WF[wf.StartI, 1]
+
+        # ========== Get Control settings ==========
+        #@infiltrate
+        wf.States_T[wf.StartI, 2] = (
+            wf.States_WF[wf.StartI, 2] .- getYaw(set.control_mode, con, (1:nT), sim_time)'
+        )
+        wf.States_T[wf.StartI, 1] = getInduction(set.induction_mode, con, (1:nT), sim_time-sim.start_time)'
+
+        # ========== Calculate Power ==========
+        P = getPower(wf, @view(tmpM[1:nT, :]), floris, con)
+        ma[(it-1)*nT+1:it*nT, 6] = P
+
+        # ========== Live Plotting ============
+        if vis.online
+            t_rel = sim_time - sim.start_time
+            if mod(t_rel - vis.t_skip, vis.up_int) == 0 && t_rel >= vis.t_skip
+                Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
+                rel_vel = Z[:,:,1]
+                if any(isnan, rel_vel)
+                    @warn "NaN values found in relative velocity field!"
+                    display(sparse(isnan.(rel_vel)))
+                end
+                if isnothing(rmt_plot_fn)
+                    plot_state = plotFlowField(plot_state, plt, wf, X, Y, Z, vis, t_rel - vis.t_skip; msr)
+                    plt.pause(0.01)
+                else
+                    # @info "time: $t_rel, plotting with rmt_plot_fn"
+                    @spawnat 2 rmt_plot_fn(wf, X, Y, Z, vis, t_rel - vis.t_skip; msr=msr)
+                end
+            end
+        end
+        sim_time += sim.time_step
+    end
+    # Convert `ma` to DataFrame and scale measurements
+
+    powergen_buffer .=  @view(ma[:, 6]) ./ 1e6  # Update the provided power generation buffer with the latest values
+    return nothing
+    
+    
+    #=
+    md = DataFrame(
+        (ma * diagm([1; 100; 100; 1; 1; 1e-6])),
+        [:Time, :ForeignReduction, :AddedTurbulence, :EffWindSpeed, :FreeWindSpeed, :PowerGen]
+    )
+    mi = hcat(md.Time, hcat(vm_int...)')
+    return wf, md, mi
+    =#
 end

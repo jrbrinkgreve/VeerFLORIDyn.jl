@@ -1,11 +1,66 @@
-#the include file for all functions
 
 
-#------------------------------------------------------------------------------------------------------------
-#define cost and memory helper functions
+function construct_yaw_matrix_dynamic(x, sim, wf, num_yaw_changes, max_yaw_rate)
+    
+    num_steps = sim.end_time - sim.start_time + 1
+    
+    # 1. Preallocate the final yaw matrix exactly once to eliminate memory bottlenecks
+    yaws = Matrix{Float64}(undef, num_steps, wf.nT)
+    
+    if num_yaw_changes == 1
+        # Fill directly using broadcasting instead of allocating 'ones' matrices
+        for j in 1:wf.nT
+            yaws[:, j] .= x[j] * 360.0
+        end
+        return hcat(sim.start_time:sim.end_time, yaws)
+    end
+
+    duration = sim.end_time - sim.start_time
+    
+    # 2. Map normalized timestamps to specific row boundaries in our preallocated matrix
+    transitions = zeros(Int, num_yaw_changes)
+    @inbounds for i in 1:(num_yaw_changes - 1)
+        # Calculate row index corresponding to the time change
+        transitions[i] = round(Int, x[i] * duration) + 1
+    end
+    transitions[end] = num_steps # Ensure the last segment reaches the very end
+    
+    # 3. Fill the matrix in-place
+    current_row = 1
+    for i in 1:num_yaw_changes
+        end_row = transitions[i]
+        
+        # Safeguard: optimizers sometimes guess non-sequential times (e.g., t2 < t1)
+        end_row = max(current_row - 1, end_row) 
+        if i == num_yaw_changes
+            end_row = num_steps # Force last segment to cover the remaining steps
+        end
+        
+        if current_row <= end_row
+            @inbounds for j in 1:wf.nT
+                # Read directly from flat array 'x' using an index formula.
+                # This entirely avoids expensive `reshape` and array slicing.
+                flat_idx = num_yaw_changes - 1 + (i - 1) * wf.nT + j
+                val = x[flat_idx] * 360.0
+                
+                # Assign the scalar value directly to the specific block of memory
+                yaws[current_row:end_row, j] .= val 
+            end
+        end
+        current_row = end_row + 1
+    end
+
+    # Enforce yaw rate limits (in-place modification)
+    apply_yaw_rate_limit!(yaws, max_yaw_rate)
+
+    # hcat binds the time vector and the yaw matrix without generating extra rows
+    return hcat(sim.start_time:sim.end_time, yaws)
+end
 
 
-function construct_yaw_matrix_dynamic!(buffer, x, sim, wf, num_yaw_changes, max_yaw_rate)
+function construct_yaw_matrix_dynamic!(buffer, x, sim, wf, opt_set)
+    num_yaw_changes = opt_set.set_num_yaw_changes
+    max_yaw_rate = opt_set.set_max_yaw_rate
     num_steps = size(buffer, 1)
     duration = sim.end_time - sim.start_time
     
@@ -88,27 +143,6 @@ function apply_yaw_rate_limit!(yaws, max_yaw_rate)
     end
 end
 
-#wind direction interpolation helper function
-#replaced in-loop by fill_wind_dir_buffer! for performance
-function get_wind_at_t(t, wind_matrix)
-    # wind_matrix is [time direction]
-    times = wind_matrix[:, 1]
-    dirs  = wind_matrix[:, 2]
-    
-    # Handle bounds
-    if t <= times[1];   return dirs[1];   end
-    if t >= times[end]; return dirs[end]; end
-    
-    # Find the interval for linear interpolation
-    idx = findfirst(x -> x >= t, times)
-    t_low, t_high = times[idx-1], times[idx]
-    d_low, d_high = dirs[idx-1], dirs[idx]
-    
-    # Linear interpolation formula
-    return d_low + (d_high - d_low) * (t - t_low) / (t_high - t_low)
-end
-
-
 #generates an initial guess aligned with the middle point of the uniform time segments
 function generate_initial_guess(sim, wind, wf, n_segments)
     duration = sim.end_time - sim.start_time
@@ -145,6 +179,8 @@ function generate_initial_guess(sim, wind, wf, n_segments)
     
     return vcat(time_guesses, yaw_guesses)
 end
+
+
 
 function fill_wind_dir_buffer!(buffer, sim_times, wind_matrix)
     # dest_buffer: 1201 elements
@@ -184,7 +220,7 @@ end
 
 
 #main cost function
-function parallel_costfunction(plt, set::Settings, wf::WindFarm, wind::Wind, sim::Sim, con::Con, vis::Vis, floridyn::FloriDyn, floris::Floris, objective)
+function parallel_costfunction(plt, set::Settings, wf::WindFarm, wind::Wind, sim::Sim, con::Con, vis::Vis, floridyn::FloriDyn, floris::Floris, opt_set::OptimisationSettings)
     
     return function cost(x)
         state = tlv[]
@@ -192,7 +228,7 @@ function parallel_costfunction(plt, set::Settings, wf::WindFarm, wind::Wind, sim
     
 
         #yaw matrix construction
-        construct_yaw_matrix_dynamic!(state.con.yaw_data, x, state.sim, state.wf, set_num_yaw_changes, set_max_yaw_rate)
+        construct_yaw_matrix_dynamic!(state.con.yaw_data, x, state.sim, state.wf, opt_set)
         
         #get data for penalty function
         sim_times = @view state.con.yaw_data[:, 1]
@@ -203,7 +239,7 @@ function parallel_costfunction(plt, set::Settings, wf::WindFarm, wind::Wind, sim
 
 
         #handle soft and hard constraints
-        penalty_term = calculate_penalties(yaws_only, state.wind_dirs_buffer)
+        penalty_term = calculate_penalties(yaws_only, state.wind_dirs_buffer, state.sim, state.wf.nT, opt_set)
         
         #detect if penalty term exceeds hard limit, and if so return it directly to avoid unnecessary simulations
         if penalty_term >= 1e6
@@ -212,18 +248,11 @@ function parallel_costfunction(plt, set::Settings, wf::WindFarm, wind::Wind, sim
         
         #otherwise
         try
-            wf, md, mi = run_floridyn(
-                state.plt, state.set, state.wf, state.wind, 
-                state.sim, state.con, state.vis, state.floridyn, state.floris
-            )
-            
+            runFLORIDyn_optimisation!(state.power_vector, state.plt, state.set, state.wf, state.wind, 
+                state.sim, state.con, state.vis, state.floridyn, state.floris)
             
             #objective
-
-            return objective(md) + penalty_term  #in kW per turbine
-            #return powerTrackingObjective(md) + penalty_term
-
-
+            return totalEnergyObjective(state.power_vector, state.wf.nT, state.sim.n_sim_steps) + penalty_term  #in kW per turbine
 
         catch e
             # 1. If the user hits Ctrl+C, let it happen!
@@ -240,19 +269,19 @@ end
 
 
 #constrains handling
-function calculate_penalties(yaws_only, wind_dirs)
+function calculate_penalties(yaws_only, wind_dirs, sim::Sim, nT::Int, opt_set::OptimisationSettings)
     max_violation = 0.0
-    total_l1_acc  = 0.0
+    total_l1_acc  = 0.0 
 
     # Column-Major traversal (Turbines then Time) for maximum cache efficiency
-    @inbounds for i in 1:wf.nT             
+    @inbounds for i in 1:nT             
         turbine_l1 = 0.0
         
         @inbounds for j in 1:(sim.end_time - sim.start_time + 1)       
             curr_yaw = yaws_only[j, i]
             
             # 1. Check Alignment Violation
-            v = abs(curr_yaw - wind_dirs[j]) - set_max_yaw_misalignment
+            v = abs(curr_yaw - wind_dirs[j]) - opt_set.set_max_yaw_misalignment
             max_violation = max(max_violation, v)
 
             # 2. Accumulate L1 change
@@ -263,8 +292,8 @@ function calculate_penalties(yaws_only, wind_dirs)
         end
         
         # 3. Early Exit for L1 Hard Limit
-        if turbine_l1 > set_lambda_l1_hard_limit
-            return 1e6 + (turbine_l1 - set_lambda_l1_hard_limit)^2 * 1000.0
+        if turbine_l1 > opt_set.set_lambda_l1_hard_limit
+            return 1e6 + (turbine_l1 - opt_set.set_lambda_l1_hard_limit)^2 * 1000.0
         end
         
         total_l1_acc += turbine_l1
@@ -276,36 +305,56 @@ function calculate_penalties(yaws_only, wind_dirs)
     end
 
     # 5. Return normalized soft penalty
-    return (set_lambda_l1 * total_l1_acc) / (wf.nT * (sim.end_time - sim.start_time + 1))
+    return (opt_set.set_lambda_l1 * total_l1_acc) / (nT * (sim.end_time - sim.start_time + 1))
 end
 
 
 
 #objective functions
-@inline function totalEnergyObjective(md)
+@inline function totalEnergyObjective(powervector, nT, nsteps)
 
-    return -sum(md.PowerGen) / (wf.nT * sim.n_sim_steps) * 1000.0   #in kW per turbine
+    return -sum(powervector) / (nT * nsteps) * 1000.0   #in kW per turbine
     
 end
 
 
-function powerTrackingObjective(md)
-    #some kind of way to track a power curve by returning the l2 norm of the difference between the power curve and the actual power generated, normalized by the number of turbines and time steps
-    #(and plot... add plotting scripts) 
 
-    power_per_step = zeros(sim.n_sim_steps)
-    for k in 1:sim.n_sim_steps
-    acc = 0.0
-    offset = (k - 1) * wf.nT
-    @inbounds for j in 1:wf.nT
-        acc += md.PowerGen[offset + j]
-            end
-    power_per_step[k] = acc
+#wind direction interpolation helper function
+#in-loop replaced by fill_wind_dir_buffer! for performance
+function get_wind_at_t(t, wind_matrix)
+    # wind_matrix is [time direction]
+    times = wind_matrix[:, 1]
+    dirs  = wind_matrix[:, 2]
+    
+    # Handle bounds
+    if t <= times[1];   return dirs[1];   end
+    if t >= times[end]; return dirs[end]; end
+    
+    # Find the interval for linear interpolation
+    idx = findfirst(x -> x >= t, times)
+    t_low, t_high = times[idx-1], times[idx]
+    d_low, d_high = dirs[idx-1], dirs[idx]
+    
+    # Linear interpolation formula
+    return d_low + (d_high - d_low) * (t - t_low) / (t_high - t_low)
+end
+
+
+
+@inline function l1_norm_calc(yaws)
+    rows, cols = size(yaws)
+    total_sum = 0.0
+    
+    # Iterate column-first (Julia is column-major, this is faster)
+    @inbounds for j in 1:cols
+        for i in 1:(rows - 1)
+            # Accessing indices directly avoids creating slices or intermediate arrays
+            total_sum += abs(yaws[i, j] - yaws[i+1, j])
+        end
     end
     
-    return norm(power_per_step - set_desired_power_curve) / (wf.nT * sim.n_sim_steps) * 1000 #rms error in kW per turbine
+    return total_sum / wf.nT / (sim.end_time - sim.start_time + 1)
 end
-
 
 
 

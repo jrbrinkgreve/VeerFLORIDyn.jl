@@ -17,7 +17,9 @@ vis = Vis(vis_file)
 plt=nothing
 
 include("../../examples/remote_plotting.jl")
+include("optimisationstructs.jl")
 include("functions.jl")
+
 
 # get the settings for the wind field, simulator and controller
 wind, sim, con, floris, floridyn, ta, tp = setup(settings_file)
@@ -42,7 +44,8 @@ if !@isdefined(tlv)
             plt=deepcopy(plt), set=deepcopy(set), wf=deepcopy(wf),
             wind=deepcopy(wind), sim=deepcopy(sim), floris=deepcopy(floris),
             floridyn=deepcopy(floridyn), vis=deepcopy(vis), con=deepcopy(con),
-            
+
+            power_vector = zeros(wf.nT * sim.n_sim_steps), #preallocate buffer to not return DataFrame structures
             yaws_with_time_buffer = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1), #preallocate buffer for yaw matrix to avoid allocations in construct_yaw_matrix_dynamic
             wind_dirs_buffer = zeros(sim.end_time - sim.start_time + 1) #preallocate buffer for wind directions at each time step to avoid allocations in get_wind_at_t
         )
@@ -56,7 +59,7 @@ end
 
 #optimisation constraints
 set_num_yaw_changes = 4  #N
-set_num_optimiser_runs = 5 #number of automatic restarts for CMA-ES
+set_num_optimiser_runs = 2 #number of automatic restarts for CMA-ES
 set_max_yaw_rate = 1.0 #deg/s
 set_sigma0 =  0.05         # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
 set_max_yaw_misalignment = 45.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
@@ -68,23 +71,34 @@ set_objective = totalEnergyObjective      #totalEnergyObjective or powerTracking
 
 
 
-# set cost function
-cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris, set_objective)
-
 #initial state
 x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)   #x0 = result.minimizer  #start from previous result also possible
                         
 
+
 #hyperparams
-set_lambda_multiplier = 4 #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+set_lambda_multiplier = 2 #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
 set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes-1)))      / 2.0   )   #half the offspring 
 set_lambda = Int(set_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
 
 
+
+
+#efficient struct passing
+opt_set = OptimisationSettings(
+    set_num_yaw_changes, set_num_optimiser_runs, set_max_yaw_rate, set_max_yaw_misalignment, set_lambda_l1, set_lambda_l1_hard_limit, set_objective
+)
+
+
+
+# set cost function
+cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris, opt_set)
+
+
 #opts
 opts = Evolutionary.Options( 
-    iterations = 80,
+    iterations = 10,
     abstol = 1e-8,
     reltol = 1e-8,
     show_trace = true,
@@ -187,10 +201,11 @@ vis.online = false
 
 #plot flowfield
 #construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
-construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
+construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, opt_set)
 wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
 plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
+
 
 #include("get_energy.jl")  #for energy tests
 #include("controller_output.jl")   #to see and plot controller angles

@@ -27,7 +27,7 @@ wf = initSimulation(wf, sim);
 
 x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)  #start from scratch for baseline
 con.yaw_data = construct_yaw_matrix_dynamic(x0, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
-l1_baseline_yaw_avg = l1_norm_penalty(con.yaw_data[:, 2:end]) * (sim.end_time - sim.start_time + 1) 
+l1_baseline_yaw_avg = l1_norm_calc(con.yaw_data[:, 2:end]) * (sim.end_time - sim.start_time + 1) 
 wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 baseline_power_avg = sum(md.PowerGen) / (wf.nT * sim.n_sim_steps) * 1000.0
 
@@ -54,7 +54,7 @@ wf = initSimulation(wf, sim);
 
 x = result.minimizer  #start from previous result
 con.yaw_data = construct_yaw_matrix_dynamic(x, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
-l1_optimized_yaw_avg = l1_norm_penalty(con.yaw_data[:, 2:end]) * (sim.end_time - sim.start_time + 1) 
+l1_optimized_yaw_avg = l1_norm_calc(con.yaw_data[:, 2:end]) * (sim.end_time - sim.start_time + 1) 
 wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 optimized_power_avg = sum(md.PowerGen) / (wf.nT * sim.n_sim_steps) * 1000.0 #in kW
 

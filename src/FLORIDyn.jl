@@ -54,6 +54,7 @@ export discretizeRotor, calcCt, States
 export prepareSimulation, importSOWFAFile, centerline!, angSOWFA2world, initSimulation
 export runFLORIS!, init_states, getUadv
 export runFLORIDyn, iterateOPs!, setUpTmpWFAndRun!, interpolateOPs!, perturbationOfTheWF!, findTurbineGroups
+export runFLORIDyn_optimisation!
 export getVars!
 export getMeasurements, calcFlowField, plotFlowField, plotMeasurements, get_layout, install_examples, calc_rel_power
 export run_floridyn, plot_flow_field, plot_measurements, plot_x, plot_rmt, close_all, turbines

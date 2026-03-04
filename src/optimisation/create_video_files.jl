@@ -24,7 +24,7 @@ tic()
 include("../../examples/remote_plotting.jl")
 toc()
 
-
+include("optimisationstructs.jl")
 include("functions.jl")
 
 
