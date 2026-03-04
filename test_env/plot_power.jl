@@ -19,7 +19,7 @@ function get_power_curve_from_measurements(md,sim)
     power_per_step[k] = acc
     end
     
-    return power_per_step# in MW
+    return power_per_step # in MW
 end
 
 

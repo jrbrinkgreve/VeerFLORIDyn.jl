@@ -16,7 +16,7 @@ settings_file = "data/REALWF_CONTROLTEST_VEER.yaml"   #custom data file with vee
 vis = Vis(vis_file)
 plt=nothing
 
-include("../../examples/remote_plotting.jl")
+include("../examples/remote_plotting.jl")
 include("functions.jl")
 
 # get the settings for the wind field, simulator and controller
@@ -26,8 +26,11 @@ wind, sim, con, floris, floridyn, ta, tp = setup(settings_file)
 set = Settings(wind, sim, con, false, false)
 set.enable_veer = true
 set.control_mode = Yaw_Optimisation();
+set.induction_mode = Induction_TGC();
+con.induction = "TGC"
 wf, wind, sim, con, floris = prepareSimulation(set, wind, con, floridyn, floris, ta, sim);
 con.yaw_data = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1) #preallocate yaw matrix with zeros to prevent error on 'nothing'
+con.induction_data = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1) #preallocate induction matrix with zeros to prevent error on 'nothing'
 #run initial conditions
 wf = initSimulation(wf, sim);
 
@@ -56,35 +59,38 @@ end
 
 #optimisation constraints
 set_num_yaw_changes = 4  #N
-set_num_optimiser_runs = 5 #number of automatic restarts for CMA-ES
+set_num_a_changes = 8
+
+set_num_optimiser_runs = 2 #number of automatic restarts for CMA-ES
 set_max_yaw_rate = 1.0 #deg/s
 set_sigma0 =  0.05         # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
 set_max_yaw_misalignment = 45.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
 set_lambda_l1 = 0.0 #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf #a limit on the maximum total yaw change in a simulation, in degrees
-set_objective = totalEnergyObjective      #totalEnergyObjective or powerTrackingObjective 
+set_desired_power_curve = ones(sim.n_sim_steps) *  60.0  #find a way to elegantly match these numbers! 
+set_objective = powerTrackingObjective      #totalEnergyObjective or powerTrackingObjective 
 #set_individual_turbine_switching = false  #whether to allow individual turbine switching or only simultaneous switching, for simplicity we will stick with simultaneous switching for now, and can report about this in the thesis
-#set_desired_power_curve = ones(sim.n_sim_steps) *  60.0  #find a way to elegantly match these numbers! 
+set_initial_a_value = 0.30
 
 
 
 # set cost function
-cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris, set_objective)
+cost_func = test_costfunction_aic(plt, set, wf, wind, sim, con, vis, floridyn, floris, set_objective)
 
 #initial state
-x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)   #x0 = result.minimizer  #start from previous result also possible
+x0 = generate_initial_guess_aic(sim, wind, wf, set_num_a_changes)   #x0 = result.minimizer  #start from previous result also possible
                         
 
 #hyperparams
 set_lambda_multiplier = 4 #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
-set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes-1)))      / 2.0   )   #half the offspring 
+set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_a_changes-1)))      / 2.0   )   #half the offspring 
 set_lambda = Int(set_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
 
 
 #opts
 opts = Evolutionary.Options( 
-    iterations = 80,
+    iterations = 40,
     abstol = 1e-8,
     reltol = 1e-8,
     show_trace = true,
@@ -96,8 +102,8 @@ opts = Evolutionary.Options(
 
 #constraints
 #limit normalised time to [0,1], yaws are free after adding try/catch, a values are bound.
-lower_bounds = zeros(set_num_yaw_changes-1)
-upper_bounds = ones(set_num_yaw_changes-1)
+lower_bounds = vcat(zeros(set_num_a_changes-1), ones(set_num_a_changes*wf.nT) .* 0.20)
+upper_bounds = vcat(ones(set_num_a_changes-1), ones(set_num_a_changes*wf.nT) .* 0.33)
 println("Starting CMA-ES run 1")
 println("sigma0=$set_sigma0, lambda=$set_lambda, mu=$set_mu")
 
@@ -179,6 +185,7 @@ set.control_mode = Yaw_Optimisation();
 wf, wind, sim, con, floris = prepareSimulation(set, wind, con, floridyn, floris, ta, sim);
 wf = initSimulation(wf, sim);
 con.yaw_data = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1) #preallocate yaw matrix with zeros to prevent error on 'nothing'
+con.induction_data = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1) #preallocate induction matrix with zeros to prevent error on 'nothing'
 
 
 #disable online visualisation
@@ -187,16 +194,20 @@ vis.online = false
 
 #plot flowfield
 #construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
-construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
+construct_yaw_matrix_dynamic!(con.yaw_data, generate_initial_guess(sim, wind, wf, set_num_yaw_changes), sim, wf, set_num_yaw_changes, set_max_yaw_rate)
+
+#construct_axial_induction_matrix_dynamic!(con.induction_data, result.minimizer, sim, wf, set_num_a_changes)
+construct_axial_induction_matrix_dynamic!(con.induction_data, generate_initial_guess_aic(sim, wind, wf, set_num_a_changes), sim, wf, set_num_a_changes)
 wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
 plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
+include("plot_power.jl")
 
 #include("get_energy.jl")  #for energy tests
 #include("controller_output.jl")   #to see and plot controller angles
 
 println()
-include("calculate_increase_over_baseline.jl")  #to calculate the increase over baseline for the optimised case, compared to a baseline case with no yawing
+#include("calculate_increase_over_baseline.jl")  #to calculate the increase over baseline for the optimised case, compared to a baseline case with no yawing
 
 
 
@@ -253,6 +264,64 @@ include test.jl
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+#----- test.jl:
+
+
+# the settings for the wind field, simulator and controller
+wind, sim, con, floris, floridyn, ta, tp = setup(settings_file)
+
+
+#set = Settings(wind, sim, con, Threads.nthreads() > 1, Threads.nthreads() > 1)
+set = Settings(wind, sim, con, false, false)
+set.enable_veer = true
+set.control_mode = Yaw_Optimisation();
+set.induction_mode = Induction_TGC();
+
+con.induction = "TGC"
+
+
+#AAAAAAAAA note: if we keep a between 0.2 and 0.33, we can approximate with constant lambda of 7.6
+#meaning we can do axial induction control in this range without changing the code dynamics!!!
+# == TO DO FOR LATER
+
+#run initial conditions
+wf, wind, sim, con, floris = prepareSimulation(set, wind, con, floridyn, floris, ta, sim);
+wf = initSimulation(wf, sim);
+con.yaw_data = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1) #preallocate yaw matrix with zeros to prevent error on 'nothing'
+con.induction_data = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1) #preallocate induction matrix with zeros to prevent error on 'nothing'
+
+
+#disable online visualisation
+vis.online = false 
+
+
+#plot flowfield
+#construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
+construct_yaw_matrix_dynamic!(con.yaw_data, generate_initial_guess(sim, wind, wf, set_num_yaw_changes), sim, wf, set_num_yaw_changes, set_max_yaw_rate)
+
+
+
+
+
+
+construct_axial_induction_matrix_dynamic!(con.induction_data, result.minimizer, sim, wf, set_num_a_changes)
+#construct_axial_induction_matrix_dynamic!(con.induction_data, generate_initial_guess_aic(sim, wind, wf, set_num_a_changes), sim, wf, set_num_a_changes)
+wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
+#Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
+#plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
+include("plot_power.jl")
 
 
 =#
