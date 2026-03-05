@@ -463,14 +463,10 @@ function get_velocity_veer!(rps_coords,
                 (2.0 / pi) * t_hat[i]  / (((coords_veered[i,3] + z_hub  ) / xi_0_hat[i])^2 - 1.0)  
 
         )
-
-        y_c[i] = y_hat_c[i] * xi_0_hat[i]
+         y_c[i] = y_hat_c[i] * xi_0_hat[i]
         
-        if abs(coords_veered[i,3] - z_hub) < 1e-10
-             theta[i] = 0.0
-        else
-            theta[i] = atan( (coords_veered[i,3] - z_hub) / (coords_veered[i,2] - y_c[i]) )
-        end
+        #angle
+        theta[i] = atan(coords_veered[i,3] - z_hub, coords_veered[i,2] - y_c[i])
 
 
         #eq 9: initial wake shape

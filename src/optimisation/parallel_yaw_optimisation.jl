@@ -5,15 +5,12 @@ using Infiltrator
 using Profile
 using BenchmarkTools
 using LinearAlgebra
-using FLORIDyn, TerminalPager, DistributedNext 
+using FLORIDyn, TerminalPager, DistributedNext
+#using AppleAccelerate #can comment out of not on macOS
 if Threads.nthreads() == 1; using ControlPlots; end
 
+
 #region fold initialisation and setup
-
-
-
-
-
 
 
 #get the visualisation and settings
@@ -25,6 +22,9 @@ plt=nothing
 include("../../examples/remote_plotting.jl")
 include("optimisationstructs.jl")
 include("functions.jl")
+
+#BLAS/multithreading 
+BLAS.set_num_threads(1)
 
 
 # get the settings for the wind field, simulator and controller
@@ -60,29 +60,30 @@ end
 
 #endregion
 
-#------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
 #OPTIMISATION PART
 
 #sim 
-set_num_yaw_changes = 4  #N
-set_max_yaw_misalignment = 45.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
-set_lambda_l1 = 0.0 #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
-set_lambda_l1_hard_limit = Inf #a limit on the maximum total yaw change in a simulation, in degrees
-set_max_yaw_rate = 1.0 #deg/s
+set_num_yaw_changes = 4         #N
+set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
+set_lambda_l1 = 0.0             #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
+set_lambda_l1_hard_limit = Inf  #a limit on the maximum total yaw change in a simulation, in degrees
+set_max_yaw_rate = 1.0          #deg/s
 set_objective = totalEnergyObjective      #totalEnergyObjective or powerTrackingObjective 
 
 #optimiser convergence/ fidelity  
-set_cmaes_lambda_multiplier = 4 #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
-set_num_optimiser_runs = 3 #number of automatic restarts for CMA-ES
-set_iterations = 50     #number of iterations for CMAES
-set_sigma0 = 0.05         # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
-set_sigma0_secondary = 0.01 #for second run with yaws, to reduce the search area and converge faster, can play around with this
+set_cmaes_lambda_multiplier = 4     #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+set_num_optimiser_runs = 5          #number of automatic restarts for CMA-ES
+set_iterations = 50                 #number of iterations for CMAES
+set_sigma0 = 0.05                   # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
+set_sigma0_secondary = 0.01         #for second run with yaws, to reduce the search area and converge faster, can play around with this
 
 
 #region fold CMAES prep
 
 #initial state
 x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)   #x0 = result.minimizer  #start from previous result also possible
+
                     
 
 
@@ -106,7 +107,7 @@ cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, f
 opts = Evolutionary.Options( 
     iterations = set_iterations,
     abstol = 1e-8,
-    reltol = 1e-8,
+    reltol = 1e-8,          #1e-8
     show_trace = true,
     show_every = 5, 
     store_trace = true,
@@ -116,7 +117,7 @@ opts = Evolutionary.Options(
 
 
 #constraints
-#limit normalised time to [0,1], yaws are free after adding try/catch, a values are bound.
+#limit normalised time to [0,1], yaws are free after adding try/catch
 lower_bounds = zeros(set_num_yaw_changes-1)
 upper_bounds = ones(set_num_yaw_changes-1)
 #endregion CMAES prep
@@ -178,7 +179,7 @@ println("Total optimization time: $(round(total_time, digits=2)) seconds")
 
 #endregion CMAES
 
-#----------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------
 
 #region PLOTTING & POSTPROCESSING
 
@@ -223,7 +224,7 @@ GC.gc()
 #endregion PLOTTING & POSTPROCESSING
 
 
-#notes--------------------------------------------------------------------------------
+#notes----------------------------------------------------------------------------------------------------------
 #=
 
 

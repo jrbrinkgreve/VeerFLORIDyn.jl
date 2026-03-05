@@ -16,6 +16,8 @@ using Interpolations, LinearAlgebra, Random, YAML, StructMapping, Parameters, CS
 using Statistics, StaticArrays, Pkg, DistributedNext, Dates
 using REPL.TerminalMenus
 using SparseArrays
+#because I am working on a mac
+using AppleAccelerate
 
 export MSR, toMSR, VelReduction, AddedTurbulence, EffWind
 export setup, Settings, Vis, getTurbineData, initSimulation, TurbineArray, TurbineData, turbine_group, create_n_groups
