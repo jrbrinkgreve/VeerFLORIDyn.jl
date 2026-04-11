@@ -7,14 +7,12 @@ using BenchmarkTools
 using LinearAlgebra
 using FLORIDyn, TerminalPager, DistributedNext
 using Plots
-using ControlPlots
 
 if Threads.nthreads() == 1; using ControlPlots; end
 
 
 #region fold initialisation and setup
 #close old plots:
-ControlPlots.plt.close("all")
 
 #get the visualisation and settings
 vis_file = "data/vis_default.yaml"
@@ -67,8 +65,8 @@ end
 #OPTIMISATION PART
 
 #sim 
-set_num_yaw_changes = 4         #N
-set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
+set_num_yaw_changes = 2         #N
+set_max_yaw_misalignment = 45.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
 set_lambda_l1 = 0            #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf  #a limit on the maximum total yaw change in a simulation, in degrees
 set_max_yaw_rate = 1.0          #deg/s
@@ -76,7 +74,7 @@ set_objective = totalEnergyObjective      #totalEnergyObjective or powerTracking
 
 #optimiser convergence/ fidelity  
 set_cmaes_lambda_multiplier = 4    #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
-set_num_optimiser_runs = 1         #number of automatic restarts for CMA-ES
+set_num_optimiser_runs = 3        #number of automatic restarts for CMA-ES
 set_iterations = 50                #number of iterations for CMAES
 set_sigma0 = 0.05                  # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
 set_sigma0_secondary = 0.01         #for second run with yaws, to reduce the search area and converge faster, can play around with this
@@ -95,6 +93,7 @@ opt_set = OptimisationSettings(
 )
 
 #hyperparams
+#set_lambda0 = 10
 set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes-1)))      / 2.0   )   #half the offspring 
 set_lambda = Int(set_cmaes_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
@@ -188,7 +187,7 @@ println("Total optimization time: $(round(total_time, digits=2)) seconds")
 #------------------------------------------------------------------------------------------------------------------
 
 #region PLOTTING & POSTPROCESSING
-
+#=
 #convergence plot
 threshold = 1e5
 p = Plots.plot(title="CMA-ES Convergence (all runs)", xlabel="Iteration", ylabel="Cost")
@@ -203,7 +202,7 @@ let offset = 0
     end
 end
 display(p)
-
+=#
 
 
 # the settings for the wind field, simulator and controller

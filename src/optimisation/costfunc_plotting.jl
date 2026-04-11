@@ -4,7 +4,7 @@
 #slightly mis-positioned with respect to the wind direction
 #can also vary veer magnitude for cost function changes
 
-
+using Infiltrator
 
 
 include("functions.jl")
@@ -36,15 +36,42 @@ wf = initSimulation(wf, sim);
 and plot as a contour plot or surface plot
 =#
 
-set_num_yaw_changes = 1
 
 
 
-
+#just to get the size
 x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)  #start from scratch for baseline
 con.yaw_data = construct_yaw_matrix_dynamic(x0, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
-wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
-baseline_power_avg = sum(md.PowerGen) / (wf.nT * sim.n_sim_steps) * 1000.0
+
+function construct_yaw_matrix_static!(buffer, x1, x2)
+    buffer[:, 2] .= x1
+    buffer[:, 3] .= x2 
+    buffer[:, 4] .= 180.0
+
+    return nothing
+end
+
+
+function calc_power(md)
+    return sum(md.PowerGen) / (wf.nT * sim.n_sim_steps) * 1000.0
+end
+
+
+matrix = zeros(41, 41)
+x_array = range(160.0, 200.0, length=41)
+y_array = range(160.0, 200.0, length=41)
+
+for (i, x1) in enumerate(x_array)
+    for (j, x2) in enumerate(y_array)
+        construct_yaw_matrix_static!(con.yaw_data, x1, x2)
+        wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
+        matrix[i, j] = calc_power(md)  # <- whatever your output metric is
+    end
+end
+
+
+#wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
+#baseline_power_avg = calc_power(md)
 
 
 
