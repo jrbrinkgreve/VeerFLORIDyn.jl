@@ -10,6 +10,8 @@ vis:
   unique_output_folder: true # If true, a unique output folder is created for each simulation run
   skip_flow_fields: false    # When true, do not create flow field visualizations
   skip_measurements: true   # When true, do not create measurement visualizations
+  #field_limits_min: [0.0, 0.0, 0.0]
+  #field_limits_max: [3000.0, 3000.0, 400.0]
   field_limits_min: [500.0, 500.0, 0] #[-300.0, -1000.0, 0.0]          # [xmin, ymin, zmin] in meters
   field_limits_max: [5500.0, 5500.0, 400] #[3000.0, 4000.0, 400.0]  # [xmax, ymax, zmax] in meters
   field_resolution: 20.0                     # Resolution of the field in meters

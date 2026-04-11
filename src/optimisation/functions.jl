@@ -240,7 +240,7 @@ function parallel_costfunction(plt, set::Settings, wf::WindFarm, wind::Wind, sim
 
         #handle soft and hard constraints
         penalty_term = calculate_penalties(yaws_only, state.wind_dirs_buffer, state.sim, state.wf.nT, opt_set)
-        
+
         #detect if penalty term exceeds hard limit, and if so return it directly to avoid unnecessary simulations
         if penalty_term >= 1e6
             return penalty_term
@@ -259,7 +259,7 @@ function parallel_costfunction(plt, set::Settings, wf::WindFarm, wind::Wind, sim
             if e isa InterruptException 
                 rethrow(e)
             end
-            if e isa ArgumentError #memory errors for Evolutionary.jl, fall under this
+            if e isa ArgumentError #memory errors for Evolutionary.jl fall under this
                 rethrow(e)
             end
             return 2e6 # Fallback for unexpected failures

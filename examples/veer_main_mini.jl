@@ -6,13 +6,17 @@
 
 # Minimal example of how to run a simulation using FLORIDyn.jl
 using Timers
-
+using Infiltrator
+using ControlPlots
 tic()
 using FLORIDyn, TerminalPager, DistributedNext 
 if Threads.nthreads() == 1; using ControlPlots; end
 toc()
 
-_ , vis_file = get_default_project()[2:3]
+
+ControlPlots.close("all")
+#_ , vis_file = get_default_project()[2:3]
+vis_file = "data/vis_default.yaml"
 settings_file = "data/REALWF_CONTROLTEST_VEER.yaml"   #custom data file with veer specification
 
 
@@ -43,22 +47,25 @@ toc()
 
 vis.online = false #false
 # Matlab: 0.43s for 9T on desktop
+
 @time wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 @time Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
 @time plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
+
+
+
+loc = 2200.0
+Z, A, Zh = calcFlowFieldCrossSection(set, wf, wind, floris; fixed=loc, xlims=(1000.0, 2000.0), orientation=:WE)
+plotFlowFieldCrossSection(ControlPlots.plt, wf, A, Zh, Z, vis, loc; orientation=:WE)
+
+
+
 nothing
-
-
 #=
 
 msr=VelReduction
 msr=AddedTurbulence
 msr=EffWind
-
-
-
-
-
 
 
 

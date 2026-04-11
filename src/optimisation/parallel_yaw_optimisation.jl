@@ -6,12 +6,15 @@ using Profile
 using BenchmarkTools
 using LinearAlgebra
 using FLORIDyn, TerminalPager, DistributedNext
-#using AppleAccelerate #can comment out of not on macOS
+using Plots
+using ControlPlots
+
 if Threads.nthreads() == 1; using ControlPlots; end
 
 
 #region fold initialisation and setup
-
+#close old plots:
+ControlPlots.plt.close("all")
 
 #get the visualisation and settings
 vis_file = "data/vis_default.yaml"
@@ -66,25 +69,24 @@ end
 #sim 
 set_num_yaw_changes = 4         #N
 set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
-set_lambda_l1 = 0.0             #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
+set_lambda_l1 = 0            #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf  #a limit on the maximum total yaw change in a simulation, in degrees
 set_max_yaw_rate = 1.0          #deg/s
 set_objective = totalEnergyObjective      #totalEnergyObjective or powerTrackingObjective 
 
 #optimiser convergence/ fidelity  
-set_cmaes_lambda_multiplier = 4     #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
-set_num_optimiser_runs = 5          #number of automatic restarts for CMA-ES
-set_iterations = 50                 #number of iterations for CMAES
-set_sigma0 = 0.05                   # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
+set_cmaes_lambda_multiplier = 4    #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+set_num_optimiser_runs = 1         #number of automatic restarts for CMA-ES
+set_iterations = 50                #number of iterations for CMAES
+set_sigma0 = 0.05                  # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
 set_sigma0_secondary = 0.01         #for second run with yaws, to reduce the search area and converge faster, can play around with this
 
 
-#region fold CMAES prep
-
 #initial state
-x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)   #x0 = result.minimizer  #start from previous result also possible
+x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)   
+#x0 = result.minimizer           #start from previous result also possible
 
-                    
+#region fold CMAES prep
 
 
 #efficient struct passing
@@ -127,7 +129,7 @@ println()
 println("Starting CMAES run 1 / $set_num_optimiser_runs")
 println("σ_0 = $set_sigma0, λ = $set_lambda, μ = $set_mu")
 println()
-
+all_traces = [] #to store traces from multiple runs 
 
 begin_time = time()
 @time result =  Evolutionary.optimize(cost_func,
@@ -138,7 +140,8 @@ begin_time = time()
                                         sigma0 = set_sigma0),
                                 opts)
 
-
+#store trace
+push!(all_traces, result.trace)
 
 
 #secondary runs with other options as well
@@ -169,7 +172,10 @@ for run in 2:set_num_optimiser_runs
                                         mu = local_set_mu,
                                         sigma0 = local_set_sigma0),
                                 opts)
+    push!(all_traces, result.trace) #store trace
 end
+
+
 
 
 end_time = time()
@@ -183,8 +189,20 @@ println("Total optimization time: $(round(total_time, digits=2)) seconds")
 
 #region PLOTTING & POSTPROCESSING
 
+#convergence plot
+threshold = 1e5
+p = Plots.plot(title="CMA-ES Convergence (all runs)", xlabel="Iteration", ylabel="Cost")
 
-
+let offset = 0
+    for (i, trace) in enumerate(all_traces)
+        filtered = [(t.iteration, t.value) for t in trace if t.value < threshold]
+        iters    = [x[1] + offset for x in filtered]
+        values   = [x[2]          for x in filtered]
+        Plots.plot!(p, iters, values, lw=2, label="Run $i")
+        offset = isempty(iters) ? offset : iters[end]
+    end
+end
+display(p)
 
 
 
@@ -211,8 +229,36 @@ vis.online = false
 #construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
 construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, opt_set)
 wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
+
+#top-view
 Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
 plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
+
+
+
+
+
+
+
+#region cross-sections #use either
+#South-North slice at x=1000m
+#=
+
+Z, A, Zh = calcFlowFieldCrossSection(set, wf, wind, floris; fixed=1000.0, orientation=:NS)
+plotFlowFieldCrossSection(ControlPlots.plt, wf, A, Zh, Z, vis, 1000.0; orientation=:NS)
+
+=#
+
+#West-East slice at y=1500m
+#=
+
+Z, A, Zh = calcFlowFieldCrossSection(set, wf, wind, floris; fixed=2000.0, orientation=:WE)
+plotFlowFieldCrossSection(ControlPlots.plt, wf, A, Zh, Z, vis, 2000.0; orientation=:WE)
+
+=#
+#endregion cross-sections
+
+
 
 println()
 include("calculate_increase_over_baseline.jl")  #to calculate the increase over baseline for the optimised case, compared to a baseline case with no yawing

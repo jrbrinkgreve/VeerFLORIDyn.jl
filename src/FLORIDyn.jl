@@ -59,6 +59,9 @@ export runFLORIDyn, iterateOPs!, setUpTmpWFAndRun!, interpolateOPs!, perturbatio
 export runFLORIDyn_optimisation!
 export getVars!
 export getMeasurements, calcFlowField, plotFlowField, plotMeasurements, get_layout, install_examples, calc_rel_power
+#cross section plotting
+export calcFlowFieldCrossSection, plotFlowFieldCrossSection
+
 export run_floridyn, plot_flow_field, plot_measurements, plot_x, plot_rmt, close_all, turbines
 export createVideo, createAllVideos, natural_sort_key, cleanup_video_folder
 export now_microseconds, now_nanoseconds, precise_now, unique_name, delete_results, find_floridyn_runs, compare_dataframes
@@ -68,6 +71,10 @@ export UnifiedBuffers, create_unified_buffers
 export get_default_project
 export select_project
 export get_default_msr, set_default_msr, select_measurement
+
+
+#extra functions:
+export plotFlowFieldYZ, calcFlowFieldYZ
 
 """
     MSR `VelReduction` `AddedTurbulence` `EffWind`

@@ -380,6 +380,8 @@ wind_speed = Z[:, :, 3]
 - [`getMeasurements`](@ref): Function used internally to compute the flow field
 - [`plotFlowField`](@ref): Visualization function for the generated data
 """
+
+
 function calcFlowField(set::Settings, wf::WindFarm, wind::Wind, floris::Floris;
                        plt=nothing, vis=nothing)
     # Preallocate field
@@ -431,4 +433,242 @@ function calcFlowField(set::Settings, wf::WindFarm, wind::Wind, floris::Floris;
     end
 
     return Z, X, Y
+end
+
+"""
+    calcFlowFieldCrossSection(set::Settings, wf::WindFarm, wind::Wind, floris::Floris;
+                              fixed::Real, vis=nothing, orientation::Symbol=:NS)
+
+Generate flow field data for a cross-section at a fixed location.
+
+# Arguments
+- `set::Settings`: Simulation settings
+- `wf::WindFarm`: Wind farm object
+- `wind::Wind`: Wind field configuration
+- `floris::Floris`: FLORIS model parameters
+
+# Keyword Arguments
+- `fixed::Real`: The fixed coordinate (m) at which to take the cross-section
+- `vis=nothing`: Visualization config with `field_limits_min`, `field_limits_max`,
+  `field_resolution`. If not provided, defaults to the free axis ∈[0,3000], z∈[0,400] at 20m resolution.
+- `orientation::Symbol=:NS`: Orientation of the cross-section:
+  - `:NS` → fix x, vary y (South-North) and z; bottom axis is South-North
+  - `:WE` → fix y, vary x (West-East) and z; bottom axis is West-East
+
+# Returns
+- `Z::Array{Float64,3}`: Flow field with dimensions `(nz, na, 3)`
+  - `Z[:,:,1]`: Velocity reduction
+  - `Z[:,:,2]`: Added turbulence intensity
+  - `Z[:,:,3]`: Effective wind speed (m/s)
+- `A::Matrix{Float64}`: Horizontal coordinate grid (y if `:NS`, x if `:WE`) (m)
+- `Zh::Matrix{Float64}`: Z-coordinate grid (m)
+
+# Example
+```julia
+# South-North cross-section at x=1000m
+Z, A, Zh = calcFlowFieldCrossSection(set, wf, wind, floris; fixed=1000.0, orientation=:NS)
+
+# West-East cross-section at y=1500m
+Z, A, Zh = calcFlowFieldCrossSection(set, wf, wind, floris; fixed=1500.0, orientation=:WE)
+```
+
+# See Also
+- [`plotFlowFieldCrossSection`](@ref): Plotting function for the generated data
+- [`calcFlowField`](@ref): XY flow field equivalent
+"""
+function calcFlowFieldCrossSection(set::Settings, wf::WindFarm, wind::Wind, floris::Floris;
+                                   fixed::Real, vis=nothing, xlims=nothing, orientation::Symbol=:NS)
+    @assert orientation in (:NS, :WE) "orientation must be :NS or :WE"
+    nM = 3
+
+    if vis !== nothing
+        a_min = orientation == :NS ? vis.field_limits_min[2] : vis.field_limits_min[1]
+        a_max = orientation == :NS ? vis.field_limits_max[2] : vis.field_limits_max[1]
+        z_min = vis.field_limits_min[3]
+        z_max = vis.field_limits_max[3]
+        fieldRes = vis.field_resolution
+    else
+        a_min, a_max = xlims !== nothing ? (xlims[1], xlims[2]) : (0.0, 3000.0)
+        z_min, z_max = 0.0, 400.0
+        fieldRes = 20.0
+    end
+
+    aAx = a_min:fieldRes:a_max
+    zAx = z_min:fieldRes:z_max
+
+    # Grid: rows = z-levels, cols = horizontal positions
+    A  = repeat(collect(aAx)', length(zAx), 1)
+    Zh = repeat(collect(zAx),  1, length(aAx))
+
+    # Single buffer — no threading
+    buffers        = create_thread_buffers(wf, 1, floris)
+    GP             = buffers.thread_buffers[1]
+    unified_buffers = buffers.thread_unified_buffers[1]
+
+    size_grid = size(A)
+    Z = zeros(size_grid[1], size_grid[2], nM)
+
+    for iGP in 1:length(A)
+        aGP = A[iGP]
+        zGP = Zh[iGP]
+
+        if orientation == :NS       # fix x, vary y
+            GP.posBase[end, 1] = fixed
+            GP.posBase[end, 2] = aGP
+        else                        # fix y, vary x
+            GP.posBase[end, 1] = aGP
+            GP.posBase[end, 2] = fixed
+        end
+        GP.posBase[end, 3] = 0.0
+        GP.posNac[end, 1]  = 0.0
+        GP.posNac[end, 2]  = 0.0
+        GP.posNac[end, 3]  = zGP
+
+        for j in 1:size(GP.States_T, 2)
+            GP.States_T[end, j] = 0.0
+        end
+
+        interpolateOPs!(unified_buffers, GP.intOPs, GP)
+        setUpTmpWFAndRun!(unified_buffers, GP, set, floris, wind)
+
+        tmpM = unified_buffers.M_buffer
+        @views gridPointResult = tmpM[end, :]
+
+        q, r  = divrem(iGP - 1, size_grid[1])
+        row   = r + 1
+        col   = q + 1
+        @views Z[row, col, 1:3] .= gridPointResult
+    end
+
+    return Z, A, Zh
+end
+
+"""
+    plotFlowFieldCrossSection(plt, wf, A, Zh, Z, vis, fixed::Real, t=nothing;
+                              msr::MSR=VelReduction, fig=nothing, orientation::Symbol=:NS)
+
+Plot a cross-section of the flow field, mirroring the style of [`plotFlowField`](@ref).
+
+# Arguments
+- `plt`: Plotting package (e.g., ControlPlots.plt)
+- `wf`: Wind farm object
+- `A::Matrix`: Horizontal coordinate grid (y if `:NS`, x if `:WE`) (m)
+- `Zh::Matrix`: Z-coordinate grid (m)
+- `Z::Array{Float64,3}`: Flow field from [`calcFlowFieldCrossSection`](@ref), dims `(nz, na, 3)`
+- `vis::Vis`: Visualization settings
+- `fixed::Real`: The fixed coordinate of the cross-section, used in the title
+- `t`: Optional time value for the plot title
+- `msr::MSR`: Which measurement to plot. See: [`MSR`](@ref)
+- `fig`: Optional figure name override
+- `orientation::Symbol=:NS`: Must match the orientation used in [`calcFlowFieldCrossSection`](@ref):
+  - `:NS` → bottom axis is South-North
+  - `:WE` → bottom axis is West-East
+
+# Returns
+- `nothing`
+
+# Example
+```julia
+# South-North cross-section at x=1000m
+Z, A, Zh = calcFlowFieldCrossSection(set, wf, wind, floris; fixed=1000.0, orientation=:NS)
+plotFlowFieldCrossSection(plt, wf, A, Zh, Z, vis, 1000.0; orientation=:NS)
+
+# West-East cross-section at y=1500m
+Z, A, Zh = calcFlowFieldCrossSection(set, wf, wind, floris; fixed=1500.0, orientation=:WE)
+plotFlowFieldCrossSection(plt, wf, A, Zh, Z, vis, 1500.0; orientation=:WE)
+```
+
+# See Also
+- [`calcFlowFieldCrossSection`](@ref): Computes the cross-section data
+- [`plotFlowField`](@ref): XY equivalent
+"""
+function plotFlowFieldCrossSection(plt, wf, A, Zh, Z, vis, fixed::Real, t=nothing;
+                                   msr::MSR=VelReduction, fig=nothing, orientation::Symbol=:NS)
+    @assert orientation in (:NS, :WE) "orientation must be :NS or :WE"
+
+    mz_2d = Z[:, :, Int(msr)]
+
+    if msr == VelReduction
+        figure_name = "Velocity Reduction (Cross-Section)"
+        label       = "Relative Wind Speed [%]"
+        mz_2d .*= 100
+        lev_min = vis.rel_v_min; lev_max = vis.rel_v_max
+    elseif msr == AddedTurbulence
+        figure_name = "Added Turbulence (Cross-Section)"
+        label       = "Added Turbulence [%]"
+        mz_2d .*= 100
+        lev_min = 0.0; lev_max = vis.turb_max
+    elseif msr == EffWind
+        figure_name = "Effective Wind Speed (Cross-Section)"
+        label       = "Wind speed [m/s]"
+        lev_min = vis.v_min; lev_max = vis.v_max
+    end
+    if !isnothing(fig)
+        figure_name = fig
+    end
+
+    # Axis labels and title depend on orientation
+    if orientation == :NS
+        xlabel_str = "South-North [m]"
+        fixed_axis = "x"
+    else
+        xlabel_str = "West-East [m]"
+        fixed_axis = "y"
+    end
+
+    title = figure_name * ", $(fixed_axis) = $(round(Int, fixed)) m"
+    if t !== nothing
+        time_str = lpad(string(round(Int, t)), 4, '0')
+        title = title * ", t: " * time_str * " s"
+    end
+
+    aVec = A[1, :]    # unique horizontal values (one per column)
+    zVec = Zh[:, 1]   # unique z values (one per row)
+
+    fig_obj = plt.figure(figure_name, figsize=(7.25 * 0.84, 6 * 0.84))
+    ax = plt.gca()
+    n = 40
+    levels = range(lev_min, stop=lev_max, length=n+1)
+
+    plt.contourf(aVec, zVec, mz_2d, n; levels=levels, cmap="inferno")
+    cb = plt.colorbar()
+    cb.set_label(label, labelpad=3)
+
+    plt.xlim(minimum(aVec), maximum(aVec))
+    plt.ylim(minimum(zVec), maximum(zVec))
+    plt.xlabel(xlabel_str)
+    plt.ylabel("Height [m]")
+    plt.title(title)
+    plt.tight_layout(pad=1.0, h_pad=0.3, w_pad=0.3, rect=[0, 0, 1, 0.97])
+
+    if vis.show_plots
+        plt.show(block=false)
+    end
+
+    # Save if requested
+    if vis.save && !vis.unit_test
+        directory = vis.online ? vis.video_path : vis.output_path
+        msr_name  = msr == VelReduction   ? "velocity_reduction" :
+                    msr == AddedTurbulence ? "added_turbulence"   : "wind_speed"
+        fixed_str = lpad(string(round(Int, fixed)), 4, '0')
+        orient_str = orientation == :NS ? "x" : "y"
+        filename  = t !== nothing ?
+            joinpath(directory, "ff_cs_$(msr_name)_$(orient_str)$(fixed_str)m_t$(lpad(string(round(Int,t)),4,'0'))s.png") :
+            joinpath(directory, "ff_cs_$(msr_name)_$(orient_str)$(fixed_str)m.png")
+        try
+            plt.savefig(filename, dpi=150, bbox_inches="tight", pad_inches=0.1, facecolor="white")
+            if vis.print_filenames
+                @info "Saving $filename"
+            end
+        catch e
+            @debug "Failed to save cross-section plot" exception=(e, catch_backtrace())
+        end
+    end
+
+    if vis.unit_test && vis.show_plots
+        plt.pause(1.0)
+        try plt.close(fig_obj) catch end
+    end
+
+    return nothing
 end
