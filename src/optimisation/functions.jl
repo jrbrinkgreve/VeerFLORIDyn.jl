@@ -311,9 +311,16 @@ end
 
 
 #objective functions
-@inline function totalEnergyObjective(powervector, nT, nsteps)
+@inline function totalEnergyObjective(powervector, nT, nsteps, num_timesteps_to_skip=125)
 
-    return -sum(powervector) / (nT * nsteps) * 1000.0   #in kW per turbine
+    #return -sum(powervector) / (nT * nsteps) * 1000.0   #in kW per turbine
+    
+    #num_timesteps_to_skip is to skip the first 'uninitialised' timesteps
+    #value is given by largest_length_scale / u / dt
+    #@infiltrate
+
+    return -sum(powervector[(nT*num_timesteps_to_skip+1):end] ) / (nT * (nsteps - num_timesteps_to_skip)) * 1000.0
+    
     
 end
 

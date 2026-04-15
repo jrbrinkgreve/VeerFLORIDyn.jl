@@ -509,9 +509,7 @@ function getPower(wf::WindFarm, m::AbstractMatrix, floris::Floris, con::Con)
     
     Cp = 4a .* (1 .- a).^2
     ueff = m[:, 3]
-    
-
-    if floris.veer_gradient != 0.0
+        if floris.veer_gradient != 0.0
         #eff area calculations, based on height slices of rotor area having their own yaw
         eff_areas = zeros(wf.nT, 1)
         correction = 0.0

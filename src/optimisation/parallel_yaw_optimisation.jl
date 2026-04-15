@@ -65,9 +65,9 @@ end
 #OPTIMISATION PART
 
 #sim 
-set_num_yaw_changes = 2         #N
-set_max_yaw_misalignment = 45.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
-set_lambda_l1 = 0            #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
+set_num_yaw_changes = 1         #N
+set_max_yaw_misalignment = 89.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
+set_lambda_l1 = 0.0            #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf  #a limit on the maximum total yaw change in a simulation, in degrees
 set_max_yaw_rate = 1.0          #deg/s
 set_objective = totalEnergyObjective      #totalEnergyObjective or powerTrackingObjective 
@@ -84,23 +84,24 @@ set_sigma0_secondary = 0.01         #for second run with yaws, to reduce the sea
 x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)   
 #x0 = result.minimizer           #start from previous result also possible
 
-#region fold CMAES prep
-
-
+#region CMAES prep
 #efficient struct passing
 opt_set = OptimisationSettings(
     set_num_yaw_changes, set_num_optimiser_runs, set_max_yaw_rate, set_max_yaw_misalignment, set_lambda_l1, set_lambda_l1_hard_limit, set_objective
 )
 
-#hyperparams
-#set_lambda0 = 10
-set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes-1)))      / 2.0   )   #half the offspring 
+#automatic hyperparameter setting
+if set_num_yaw_changes == 1
+    set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT))      / 2.0   ) 
+else
+    set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes-1)))      / 2.0   )   #half the offspring 
+end
 set_lambda = Int(set_cmaes_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
 
 
 
-# set cost function
+#set cost function
 cost_func = parallel_costfunction(plt, set, wf, wind, sim, con, vis, floridyn, floris, opt_set)
 
 
@@ -121,7 +122,7 @@ opts = Evolutionary.Options(
 #limit normalised time to [0,1], yaws are free after adding try/catch
 lower_bounds = zeros(set_num_yaw_changes-1)
 upper_bounds = ones(set_num_yaw_changes-1)
-#endregion CMAES prep
+
 
 
 println()
@@ -129,6 +130,7 @@ println("Starting CMAES run 1 / $set_num_optimiser_runs")
 println("σ_0 = $set_sigma0, λ = $set_lambda, μ = $set_mu")
 println()
 all_traces = [] #to store traces from multiple runs 
+#endregion CMAES prep
 
 begin_time = time()
 @time result =  Evolutionary.optimize(cost_func,
@@ -187,22 +189,7 @@ println("Total optimization time: $(round(total_time, digits=2)) seconds")
 #------------------------------------------------------------------------------------------------------------------
 
 #region PLOTTING & POSTPROCESSING
-#=
-#convergence plot
-threshold = 1e5
-p = Plots.plot(title="CMA-ES Convergence (all runs)", xlabel="Iteration", ylabel="Cost")
 
-let offset = 0
-    for (i, trace) in enumerate(all_traces)
-        filtered = [(t.iteration, t.value) for t in trace if t.value < threshold]
-        iters    = [x[1] + offset for x in filtered]
-        values   = [x[2]          for x in filtered]
-        Plots.plot!(p, iters, values, lw=2, label="Run $i")
-        offset = isempty(iters) ? offset : iters[end]
-    end
-end
-display(p)
-=#
 
 
 # the settings for the wind field, simulator and controller
@@ -225,17 +212,13 @@ vis.online = false
 
 
 #plot flowfield
-#construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, set_num_yaw_changes, set_max_yaw_rate)
+#construct_yaw_matrix_dynamic!(con.yaw_data, x0, sim, wf, opt_set)
 construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, opt_set)
 wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 
 #top-view
 Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
 plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
-
-
-
-
 
 
 
@@ -246,13 +229,12 @@ plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
 Z, A, Zh = calcFlowFieldCrossSection(set, wf, wind, floris; fixed=1000.0, orientation=:NS)
 plotFlowFieldCrossSection(ControlPlots.plt, wf, A, Zh, Z, vis, 1000.0; orientation=:NS)
 
-=#
 
-#West-East slice at y=1500m
-#=
 
-Z, A, Zh = calcFlowFieldCrossSection(set, wf, wind, floris; fixed=2000.0, orientation=:WE)
-plotFlowFieldCrossSection(ControlPlots.plt, wf, A, Zh, Z, vis, 2000.0; orientation=:WE)
+
+loc = 4000.0
+Z, A, Zh = calcFlowFieldCrossSection(set, wf, wind, floris; fixed=loc, orientation=:WE)
+plotFlowFieldCrossSection(ControlPlots.plt, wf, A, Zh, Z, vis, loc; orientation=:WE)
 
 =#
 #endregion cross-sections
