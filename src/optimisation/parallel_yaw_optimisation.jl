@@ -65,8 +65,8 @@ end
 #OPTIMISATION PART
 
 #sim 
-set_num_yaw_changes = 4         #N
-set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
+set_num_yaw_changes = 1         #N
+set_max_yaw_misalignment = 89.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
 set_lambda_l1 = 0.0            #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf  #a limit on the maximum total yaw change in a simulation, in degrees
 set_max_yaw_rate = 1.0          #deg/s
@@ -136,6 +136,8 @@ println("σ_0 = $set_sigma0, λ = $set_lambda, μ = $set_mu")
 println()
 all_traces = [] #to store traces from multiple runs 
 #endregion CMAES prep
+
+#region CMAES calls
 
 begin_time = time()
 @time result =  Evolutionary.optimize(cost_func,
@@ -233,13 +235,13 @@ vis.online = false
 
 
 #plot flowfield
-#construct_yaw_matrix_dynamic!(con.yaw_data, x0, sim, wf, opt_set)
-construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, opt_set)
-wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
+construct_yaw_matrix_dynamic!(con.yaw_data, x0, sim, wf, opt_set);
+#construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, opt_set)
+wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris);
 
 #top-view
-Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
-plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
+Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis);
+plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt);
 
 
 
