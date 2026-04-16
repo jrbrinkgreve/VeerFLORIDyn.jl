@@ -39,9 +39,9 @@ else
     # Run Julia with 11 threads and load FLORIdyn
     # In addition, define the function menu()
     if [[ $julia_major == "1.12" ]]; then
-        julia --project -t 11,1 -i --gcthreads=4,0 -e 'using FLORIDyn; function menu(); include("examples/menu.jl"); end'
+        julia --project -t 8,1 -i --gcthreads=4,0 -e 'using FLORIDyn; function menu(); include("examples/menu.jl"); end'
     else
-        julia --project -t 11 --gcthreads=4,1 -i -e 'using FLORIDyn; function menu(); include("examples/menu.jl"); end'
+        julia --project -t 4 --gcthreads=3,1 -i -e 'using FLORIDyn; function menu(); include("examples/menu.jl"); end'
     fi
 fi
 

@@ -65,23 +65,28 @@ end
 #OPTIMISATION PART
 
 #sim 
-set_num_yaw_changes = 1         #N
-set_max_yaw_misalignment = 89.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
+set_num_yaw_changes = 4         #N
+set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
 set_lambda_l1 = 0.0            #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf  #a limit on the maximum total yaw change in a simulation, in degrees
 set_max_yaw_rate = 1.0          #deg/s
 set_objective = totalEnergyObjective      #totalEnergyObjective or powerTrackingObjective 
 
 #optimiser convergence/ fidelity  
-set_cmaes_lambda_multiplier = 4    #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
-set_num_optimiser_runs = 3        #number of automatic restarts for CMA-ES
-set_iterations = 50                #number of iterations for CMAES
-set_sigma0 = 0.05                  # 0.05 for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.1 for time , then 0.03 for yaws
-set_sigma0_secondary = 0.01         #for second run with yaws, to reduce the search area and converge faster, can play around with this
+set_cmaes_lambda_multiplier = 4    # 4       #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+set_num_optimiser_runs = 5        # 4       #number of automatic restarts for CMA-ES
+set_iterations = 50                # 50     #number of iterations for CMAES
+set_sigma0 = 0.05                  # 0.05   #for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.05 then 0.01 
+set_sigma0_secondary = 0.02        # 0.01   #for second run with yaws, to reduce the search area and converge faster, can play around with this #0.01
+set_sigma0_final = 0.005           # 0.005  #for final run 
+
 
 
 #initial state
-x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)   
+x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes)
+
+#other initialisations                                          #change this to rand() .- 0.5
+#x0 = generate_initial_guess(sim, wind, wf, set_num_yaw_changes) + 0.05 * randn(size(generate_initial_guess(sim, wind, wf, set_num_yaw_changes)))   
 #x0 = result.minimizer           #start from previous result also possible
 
 #region CMAES prep
@@ -146,8 +151,7 @@ push!(all_traces, result.trace)
 
 
 #secondary runs with other options as well
-for run in 2:set_num_optimiser_runs
-
+for run in 2:set_num_optimiser_runs-1
     #hyperparams
     local_set_lambda_multiplier = set_cmaes_lambda_multiplier #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
     local_set_lambda0 = set_lambda0 
@@ -177,6 +181,23 @@ for run in 2:set_num_optimiser_runs
 end
 
 
+#print
+println()   
+println("Starting CMAES run $set_num_optimiser_runs / $set_num_optimiser_runs")
+println("σ_0 = $set_sigma0_final, λ = $set_lambda, μ = $set_mu")
+println()
+
+#set new initial guess and reinitialise cov matrix
+final_initialiser = result.minimizer
+
+@time global result =  Evolutionary.optimize(cost_func,        
+                            BoxConstraints(lower_bounds, upper_bounds),
+                            final_initialiser, 
+                            CMAES(  lambda = set_lambda,
+                                    mu = set_mu,
+                                    sigma0 = set_sigma0_final),
+                            opts)
+push!(all_traces, result.trace) #store trace
 
 
 end_time = time()
@@ -276,9 +297,5 @@ GC.gc()
 
 
 =#
-
-
-
-
 
 
