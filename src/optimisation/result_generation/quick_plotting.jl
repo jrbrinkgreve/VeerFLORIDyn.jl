@@ -1,4 +1,4 @@
-
+#=
 
 #region fold initialisation and setup
 #close old plots:
@@ -41,3 +41,45 @@ plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
 
 
 
+=#
+using CSV
+using DataFrames
+using Dates
+using Plots
+using Plots.PlotMeasures
+
+
+
+
+const PLOT_FILE  = joinpath(@__DIR__, "../../../data/2021_9T_Data/gains_plot.pdf")  # PDF for publication
+
+function plot_results(wind_directions, baseline_power_avgs, optimized_power_avgs, energy_increases)
+    xticks = (wind_directions, string.(wind_directions) .* "°")
+ 
+    p1 = plot(
+        wind_directions, [baseline_power_avgs, optimized_power_avgs],
+        label       = ["Baseline" "Optimized"],
+        xlabel      = "Wind Direction",
+        ylabel      = "Average Power (W)",
+        marker      = :circle,
+        linewidth   = 2,
+        xticks      = xticks,
+        legend      = :topright,
+        dpi         = 300,
+    )
+ 
+    p2 = bar(
+        wind_directions, energy_increases,
+        xlabel    = "Wind Direction",
+        ylabel    = "Energy Gain (%)",
+        xticks    = xticks,
+        legend    = false,
+        dpi       = 300,
+    )
+ 
+    p = plot(p1, p2, layout = (2, 1), size = (600, 700), dpi = 300)
+    savefig(p, PLOT_FILE)
+    println("Plot saved to '$PLOT_FILE'")
+end
+ 
+plot_results(wind_directions, baseline_power_avgs, optimized_power_avgs, energy_increases)

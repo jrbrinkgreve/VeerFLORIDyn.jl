@@ -77,7 +77,7 @@ sim:
   floris: gaussian  #change into 'veer' later, that setting is now in settings struct
   # start & end time of the simulation and the time resolution. 
   start_time: 0      #20000         # [s]
-  end_time:   2000 # 1200.0 #86400.0   #21200         # [s]
+  end_time:   1200 # 1200.0 #86400.0   #21200         # [s]
   time_step: 4   #4   # [s]   
 
   # The discretization method, 'sunflower' or 'isocell'. The latter provides a regular grid 

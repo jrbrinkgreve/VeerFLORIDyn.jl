@@ -66,7 +66,7 @@ end
 
 #sim 
 set_num_yaw_changes = 1         #N
-set_max_yaw_misalignment = 89.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
+set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
 set_lambda_l1 = 0.0            #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf  #a limit on the maximum total yaw change in a simulation, in degrees
 set_max_yaw_rate = 1.0          #deg/s
@@ -74,11 +74,11 @@ set_objective = totalEnergyObjective      #totalEnergyObjective or powerTracking
 
 #optimiser convergence/ fidelity  
 set_cmaes_lambda_multiplier = 4    # 4       #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
-set_num_optimiser_runs = 5        # 4       #number of automatic restarts for CMA-ES
-set_iterations = 50                # 50     #number of iterations for CMAES
+set_num_optimiser_runs = 3        # 4       #number of automatic restarts for CMA-ES
+set_iterations = 30                # 50     #number of iterations for CMAES
 set_sigma0 = 0.05                  # 0.05   #for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.05 then 0.01 
 set_sigma0_secondary = 0.02        # 0.01   #for second run with yaws, to reduce the search area and converge faster, can play around with this #0.01
-set_sigma0_final = 0.005           # 0.005  #for final run 
+set_sigma0_final = 0.01           # 0.005  #for final run 
 
 
 
@@ -233,16 +233,16 @@ con.yaw_data = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1) #preallocate 
 #disable online visualisation
 vis.online = false 
 
-
+#=
 #plot flowfield
-construct_yaw_matrix_dynamic!(con.yaw_data, x0, sim, wf, opt_set);
-#construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, opt_set)
+#construct_yaw_matrix_dynamic!(con.yaw_data, x0, sim, wf, opt_set);
+construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, opt_set)
 wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris);
 
 #top-view
 Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis);
 plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt);
-
+=#
 
 
 #region cross-sections #use either
