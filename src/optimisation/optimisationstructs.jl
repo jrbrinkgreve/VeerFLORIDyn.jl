@@ -6,6 +6,7 @@
     set_lambda_l1::Float64 
     set_lambda_l1_hard_limit::Float64
     set_objective::Function 
+    set_num_timesteps_to_skip::Int
 end
 
 

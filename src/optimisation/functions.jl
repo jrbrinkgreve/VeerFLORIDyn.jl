@@ -181,10 +181,10 @@ function generate_initial_guess(sim, wind, wf, n_segments)
 end
 
 
-
+#fill wind direction buffer
 function fill_wind_dir_buffer!(buffer, sim_times, wind_matrix)
-    # dest_buffer: 1201 elements
-    # sim_times: 1201 elements
+    # dest_buffer: N elements
+    # sim_times: N elements
     # wind_matrix: [Time Direction]
     
     w_times = @view wind_matrix[:, 1]
@@ -223,7 +223,7 @@ end
 function parallel_costfunction(plt, set::Settings, wf::WindFarm, wind::Wind, sim::Sim, con::Con, vis::Vis, floridyn::FloriDyn, floris::Floris, opt_set::OptimisationSettings)
     
     return function cost(x)
-        state = tlv[]
+        state = tlv[][]
         penalty_term = 0.0
     
 
@@ -252,7 +252,7 @@ function parallel_costfunction(plt, set::Settings, wf::WindFarm, wind::Wind, sim
                 state.sim, state.con, state.vis, state.floridyn, state.floris)
             
             #objective
-            return totalEnergyObjective(state.power_vector, state.wf.nT, state.sim.n_sim_steps) + penalty_term  #in kW per turbine
+            return totalEnergyObjective(state.power_vector, state.wf.nT, state.sim.n_sim_steps, opt_set.set_num_timesteps_to_skip) + penalty_term  #in kW per turbine
 
         catch e
             # 1. If the user hits Ctrl+C, let it happen!
@@ -311,7 +311,7 @@ end
 
 
 #objective functions
-@inline function totalEnergyObjective(powervector, nT, nsteps, num_timesteps_to_skip=125)
+@inline function totalEnergyObjective(powervector, nT, nsteps, num_timesteps_to_skip=0)
 
     #return -sum(powervector) / (nT * nsteps) * 1000.0   #in kW per turbine
     

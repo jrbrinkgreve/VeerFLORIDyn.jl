@@ -5,8 +5,9 @@
 
 using Infiltrator
 using Plots
-include("functions.jl")
-include("../../examples/remote_plotting.jl")
+using JLD2
+include("../functions.jl")
+include("../../../examples/remote_plotting.jl")
 
 
 # reset states:
@@ -114,13 +115,13 @@ sweep_size = 80.0
 x_array = range(wind_dir_general - sweep_size, wind_dir_general + sweep_size, length=N) #assume 1 wind direction
 y_array = range(wind_dir_general - sweep_size, wind_dir_general + sweep_size, length=N)
 
-
-matrix = run_cost_sweep_multithreaded(set, wf, wind, sim, con, floridyn, floris, plt, vis, x_array, y_array)
-
-
+#comment out to not rerun
+#matrix = run_cost_sweep_multithreaded(set, wf, wind, sim, con, floridyn, floris, plt, vis, x_array, y_array)
 
 
 
+
+#=
 
 
 #plot flowfield
@@ -130,7 +131,7 @@ wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 #top-view
 Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
 plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)
-
+=#
 
 
 # wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
@@ -150,12 +151,12 @@ function plot_cost_landscape(matrix, x_array, y_array, wind)
         ylabel       = "Turbine 2 Yaw Misalignment (°)",
         title        = "Power Landscape",
         color        = :inferno,
-        levels       = 20,
+        levels       = 25,
         aspect_ratio = :equal,
-        grid         = false,
+        grid         = true,
         xlims        = (minimum(x_labels), maximum(x_labels)),
         ylims        = (minimum(y_labels), maximum(y_labels)),
-        clims        = (minimum(matrix), maximum(matrix)),
+        clims        = (3.0, 4.0),
     )
 
     # --- Mark the maximum (best operating point) ---
@@ -174,6 +175,17 @@ function plot_cost_landscape(matrix, x_array, y_array, wind)
         legendfontsize    = 8,
     )
 
+    scatter!(p1, [0],[0],
+        marker            = :square,
+        markersize        = 5,
+        color             = :black,
+        markerstrokecolor = :black,
+        markerstrokewidth = 1,
+        label             = "Baseline (0.0°, 0.0°)",
+        legend            = :best,
+        legendfontsize    = 8,
+    )
+
     # --- Colorbar label (workaround for gr() overlap bug) ---
     annotate!(p1, maximum(x_labels) * 1.40, 0,
         text("Turbines Avg Power (MW)", 9, :center, rotation=90))
@@ -184,8 +196,82 @@ function plot_cost_landscape(matrix, x_array, y_array, wind)
     return p
 end
 
-plot_cost_landscape(matrix*1e-3, x_array, y_array, wind)
+#plot_cost_landscape(matrix*1e-3, x_array, y_array, wind)
 
 
 
-#run for 0, 0.01, 0.05, 0.1 veer
+
+using Printf # Required for formatting ticks
+
+function plot_cost_landscape_relative(matrix, x_array, y_array, wind, veer)
+    x_labels = collect(x_array .- wind.dir[1,2])
+    y_labels = collect(y_array .- wind.dir[1,2])
+
+    # 1. Normalize
+    base_idx_x = argmin(abs.(x_labels))
+    base_idx_y = argmin(abs.(y_labels))
+    baseline_power = matrix[base_idx_x, base_idx_y]
+    relative_matrix_pct = ((matrix .- baseline_power) ./ baseline_power) .* 100
+
+    # 2. Get Max point data
+    best_idx = argmax(relative_matrix_pct)
+    best_x   = x_labels[best_idx[1]]
+    best_y   = y_labels[best_idx[2]]
+    max_gain = relative_matrix_pct[best_idx]
+
+    # --- Contour plot ---
+    p1 = contourf(
+        x_labels, y_labels, relative_matrix_pct',
+        xlabel       = "Turbine 1 Yaw Misalignment (°)",
+        ylabel       = "Turbine 2 Yaw Misalignment (°)",
+        title        = "Relative Power Gain at $(veer)°/m Veer",
+        color        = :balance,
+        levels       = 25,
+        aspect_ratio = :equal,
+        xlims        = (minimum(x_labels), maximum(x_labels)),
+        ylims        = (minimum(y_labels), maximum(y_labels)),
+        clims        = (-10, 10), # Your tweaked limits
+        colorbar_title = "\nRelative Power Change (%)", # Adds title to colorbar directly
+        colorbar_formatter = y -> @sprintf("%.1f%%", y)
+    )
+
+    # --- Mark the maximum with coordinates in the label ---
+    # Using @sprintf to keep the label clean
+    max_label = @sprintf("Max Gain: %.1f%% at (%.1f°, %.1f°)", max_gain, best_x, best_y)
+
+    scatter!(p1, [best_x], [best_y],
+        marker            = :star5,
+        markersize        = 10,
+        color             = :black,
+        label             = max_label
+    )
+
+    # --- Baseline ---
+    scatter!(p1, [0.0], [0.0],
+        marker            = :square,
+        markersize        = 5,
+        color             = :black,
+        markerstrokecolor = :black,
+        label             = "Baseline (0.0°, 0.0°)"
+    )
+
+    # --- Final Layout Adjustment ---
+    # Moving legend to :topleft avoids the colorbar on the right entirely
+    # Alternatively, use :outertopright but increase the right margin
+    p = plot(p1; 
+        size=(600, 500), 
+        margin=2Plots.mm, 
+        legend=:topleft, # Change to :topleft to avoid the right side clash
+        legendfontsize=8
+    )
+    
+    display(p)
+    savefig(p, "output/$(veer)veer_cost_landscape_relative.pdf")
+    return p
+end
+
+using JLD2
+
+
+
+plot_cost_landscape_relative(matrix, x_array, y_array, wind, 0.20)

@@ -78,23 +78,30 @@ end
 # println("Loaded $(length(data)) rows.")
 # println("First row energy increase: $(data[1].energy_increase)%")
 
-data = parse_wind_log("8.2_ms_static_angle_sweep_gains.log");
-
+data_6 = parse_wind_log("output/6.0_ms_static_angle_sweep_gains.log");
+data_8 = parse_wind_log("output/8.2_ms_static_angle_sweep_gains.log");
+data_10 = parse_wind_log("output/10.0_ms_static_angle_sweep_gains.log");
 
 using DataFrames
 
 # Convert your array of structs into a DataFrame
-df = DataFrame(data)
-
-# NOW you can access columns like this:
-println(df.baseline_power_avg)
-
-# Or perform math on the whole column:
-import Statistics: mean
-println("Average Power: ", mean(df.baseline_power_avg))
+df6 = DataFrame(data_6)
+df8 = DataFrame(data_8)
+df10 = DataFrame(data_10)
 
 
 wind_directions = collect(0:15:345)  # every 15 degrees, adjust as needed
+# First plot: initialize the canvas and labels
+plot(wind_directions, df6.energy_increase, 
+    marker=:o, 
+    label="6.0 m/s", 
+    xlabel="Wind Direction (°)", 
+    ylabel="Energy Increase over Baseline (%)", 
+    title="Energy Increase vs. Wind Direction", 
+    legend=:topright)
 
-plot(wind_directions, df.energy_increase, marker=:o, xlabel="Wind Direction (°)", ylabel="Energy Increase over Baseline (%)", title="Energy Increase vs Wind Direction", legend=false)
-savefig("energy_increase_vs_wind_direction.pdf")
+# Subsequent plots: use plot! to add to the existing canvas
+plot!(wind_directions, df8.energy_increase, marker=:o, label="8.2 m/s")
+plot!(wind_directions, df10.energy_increase, marker=:o, label="10.0 m/s")
+
+savefig("output/energy_increase_vs_wind_direction.pdf")

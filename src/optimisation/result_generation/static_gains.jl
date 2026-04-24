@@ -8,7 +8,8 @@ const OUTPUT_CSV = "data/2021_9T_Data/WindDir.csv"   # overwrites in-place; chan
 const LOG_FILE = "static_angle_sweep_gains.log"
 
 # Wind directions to sweep over
-wind_directions = collect(0:15:345)  # every 15 degrees, adjust as needed
+step = 15
+wind_directions = collect(0:step:360-step)  # every 'step' degrees, adjust as needed
 
 # ── CSV helpers ───────────────────────────────────────────
 
@@ -41,9 +42,9 @@ end
 # ── Main loop ─────────────────────────────────────────────
 
 
-#baseline_power_avgs  = Float64[]
-#optimized_power_avgs = Float64[]
-#energy_increases     = Float64[]
+baseline_power_avgs  = Float64[]
+optimized_power_avgs = Float64[]
+energy_increases     = Float64[]
 
 
 

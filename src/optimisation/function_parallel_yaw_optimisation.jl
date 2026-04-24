@@ -10,6 +10,20 @@ using Plots
 
 if Threads.nthreads() == 1; using ControlPlots; end
 
+"""
+
+NOTE: this function works slightly different from the normal script, as it is tailored to the 
+    MPC operation. This means the first timestep is not free, but copied from the previous optimal result.
+    This is to ensure the optimal solution given the real situation.
+
+
+
+
+
+
+
+
+"""
 
 #region fold initialisation and setup
 #close old plots:
@@ -24,10 +38,9 @@ include("../../examples/remote_plotting.jl")
 include("optimisationstructs.jl")
 include("functions.jl")
 
-
-
 #BLAS/multithreading 
 BLAS.set_num_threads(1)
+
 
 # get the settings for the wind field, simulator and controller
 wind, sim, con, floris, floridyn, ta, tp = setup(settings_file)
@@ -45,35 +58,21 @@ wf = initSimulation(wf, sim);
 #disable online visualisation
 vis.online = false 
 
-if !@isdefined(tlv)
-    const tlv = Ref{TaskLocalValue{NamedTuple}}()
-end
 
-function init_tlv!()
-    tlv[] = TaskLocalValue{NamedTuple}() do
+#thread-safety for parallel execution     
+if !@isdefined(tlv)
+    const tlv = TaskLocalValue{NamedTuple}() do
         (
-            plt      = deepcopy(plt),
-            set      = deepcopy(set),
-            wf       = deepcopy(wf),
-            wind     = deepcopy(wind),
-            sim      = deepcopy(sim),
-            floris   = deepcopy(floris),
-            floridyn = deepcopy(floridyn),
-            vis      = deepcopy(vis),
-            con      = deepcopy(con),
-            power_vector          = zeros(wf.nT * sim.n_sim_steps),
-            yaws_with_time_buffer = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1),
-            wind_dirs_buffer      = zeros(sim.end_time - sim.start_time + 1),
+            plt=deepcopy(plt), set=deepcopy(set), wf=deepcopy(wf),
+            wind=deepcopy(wind), sim=deepcopy(sim), floris=deepcopy(floris),
+            floridyn=deepcopy(floridyn), vis=deepcopy(vis), con=deepcopy(con),
+
+            power_vector = zeros(wf.nT * sim.n_sim_steps), #preallocate buffer to not return DataFrame structures
+            yaws_with_time_buffer = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1), #preallocate buffer for yaw matrix to avoid allocations in construct_yaw_matrix_dynamic
+            wind_dirs_buffer = zeros(sim.end_time - sim.start_time + 1) #preallocate buffer for wind directions at each time step to avoid allocations in get_wind_at_t
         )
     end
 end
-
-# (Re)initialise whenever data changes
-init_tlv!()
-
-
-
-
 
 #endregion
 
@@ -86,12 +85,12 @@ set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cos
 set_lambda_l1 = 0.0            #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf  #a limit on the maximum total yaw change in a simulation, in degrees
 set_max_yaw_rate = 1.0          #deg/s
-set_objective = totalEnergyObjective   #totalEnergyObjective or powerTrackingObjective al
-set_num_timesteps_to_skip = 125     #skip the first N timesteps for wake effects to propagate, approx time between wake interactions
+set_objective = totalEnergyObjective      #totalEnergyObjective or powerTrackingObjective al
+set_num_timesteps_to_skip = 125          #skip the first N timesteps for wake effects, approx time between wake interactions
 
 #optimiser convergence/ fidelity  
 set_cmaes_lambda_multiplier = 4    # 4       #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
-set_num_optimiser_runs = 4        # 4       #number of automatic restarts for CMA-ES
+set_num_optimiser_runs = 2        # 4       #number of automatic restarts for CMA-ES
 set_iterations = 50                # 50     #number of iterations for CMAES
 set_sigma0 = 0.05                  # 0.05   #for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.05 then 0.01 
 set_sigma0_secondary = 0.02        # 0.02   #for second run with yaws, to reduce the search area and converge faster, can play around with this #0.01
@@ -112,9 +111,14 @@ opt_set = OptimisationSettings(
     set_num_yaw_changes, set_num_optimiser_runs, set_max_yaw_rate, set_max_yaw_misalignment, set_lambda_l1, set_lambda_l1_hard_limit, set_objective, set_num_timesteps_to_skip
 )
 
-#automatic hyperparameter setting
 
-set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes)))      / 2.0   )   #half the offspring 
+
+#automatic hyperparameter setting
+if set_num_yaw_changes == 1
+    set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT))      / 2.0   ) 
+else
+    set_lambda0 = 2 * round(   (4 + 3 * log(wf.nT * (set_num_yaw_changes-1)))      / 2.0   )   #half the offspring 
+end
 set_lambda = Int(set_cmaes_lambda_multiplier * set_lambda0)
 set_mu = Int(round(set_lambda / 2))
 
@@ -138,7 +142,7 @@ opts = Evolutionary.Options(
 
 
 #constraints
-#limit normalised time to [0,1], yaws are free
+#limit normalised time to [0,1], yaws are free after adding try/catch
 lower_bounds = zeros(set_num_yaw_changes-1)
 upper_bounds = ones(set_num_yaw_changes-1)
 

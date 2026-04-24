@@ -499,45 +499,31 @@ f_yaw_constraints = [0.5 × tanh((γ_max - γ) × 50) + 0.5] ×
 - Axial induction factors are extracted from `wf.States_T[wf.StartI, 1]` for current time step
 - Yaw angles are converted from degrees to radians internally
 """
-
 function getPower(wf::WindFarm, m::AbstractMatrix, floris::Floris, con::Con)
     a   = wf.States_T[wf.StartI, 1]
     yaw = deg2rad.(wf.States_T[wf.StartI, 2])
     z_hubs = wf.posNac[:,3]
-    
-    
-    
     Cp = 4a .* (1 .- a).^2
     ueff = m[:, 3]
-        if floris.veer_gradient != 0.0
-        #eff area calculations, based on height slices of rotor area having their own yaw
+    if floris.veer_gradient != 0.0
         eff_areas = zeros(wf.nT, 1)
         correction = 0.0
         area_hub = 0.0
-        
         @inbounds for iT in 1:wf.nT
-            
-            area_hub = pi * (wf.D[iT] / 2.0)^2 * (max.(0.0, cos.(yaw[iT])).^floris.p_p)
-            #second-order correction for veer
+            area_hub = pi * (wf.D[iT] / 2.0)^2
             correction = 1.0 - (floris.p_p * deg2rad(floris.veer_gradient)^2 * (wf.D[iT] / 2.0)^2 / 8.0) * (1.0 - (floris.p_p - 1.0) * tan(yaw[iT])^2)
             eff_areas[iT] = area_hub * correction
         end
-        
-        
-        if con.tanh_yaw   
+        if con.tanh_yaw
             P = 0.5 * floris.airDen * eff_areas .* Cp' .* ueff.^3 .* floris.eta .* 
                 (max.(0.0, cos.(yaw)).^floris.p_p)' .* 
                 (0.5 * tanh((-yaw + deg2rad.(con.yawRangeMax)) * 50) + 0.5) * 
                 (-0.5 * tanh((-yaw + deg2rad.(con.yawRangeMin)) * 50) + 0.5)
         else
             P = 0.5 * floris.airDen * eff_areas .* Cp' .* ueff.^3 .* floris.eta .* 
-            (max.(0.0, cos.(yaw)).^floris.p_p)'
-
+                (max.(0.0, cos.(yaw)).^floris.p_p)'
         end
-        
-        
-    else 
-
+    else
         if con.tanh_yaw
             P = 0.5 * floris.airDen * (wf.D / 2).^2 * π .* Cp' .* ueff.^3 .* floris.eta .* 
                 (max.(0.0, cos.(yaw)).^floris.p_p)' .* 
@@ -545,17 +531,11 @@ function getPower(wf::WindFarm, m::AbstractMatrix, floris::Floris, con::Con)
                 (-0.5 * tanh((-yaw + deg2rad.(con.yawRangeMin)) * 50) + 0.5)
         else
             P = 0.5 * floris.airDen * (wf.D / 2).^2 * π .* Cp' .* ueff.^3 .* floris.eta .* 
-            (max.(0.0, cos.(yaw)).^floris.p_p)'
-
+                (max.(0.0, cos.(yaw)).^floris.p_p)'
         end
     end
-
-
     return P
-
-
 end
-
 """
     getUadv(states_op, states_t, states_wf, floris::Floris, d_rotor)
 
