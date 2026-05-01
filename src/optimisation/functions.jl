@@ -1,3 +1,5 @@
+using Base.Threads
+
 
 
 function construct_yaw_matrix_dynamic(x, sim, wf, num_yaw_changes, max_yaw_rate)
@@ -124,14 +126,13 @@ end
 
 #yaw rate limiting
 function apply_yaw_rate_limit!(yaws, max_yaw_rate)
-    ax1, ax2 = axes(yaws)
-    
-    @inbounds for i in Iterators.drop(ax1, 1)
-        @inbounds for j in ax2
+    nrows, ncols = size(yaws)
+    @inbounds for i in 2:nrows
+        @inbounds for j in 1:ncols
             yaw_change = yaws[i, j] - yaws[i-1, j]
-            
+                
             if abs(yaw_change) > max_yaw_rate
-         
+            
                 num_steps = ceil(Int, abs(yaw_change) / max_yaw_rate)
                 yaw_step = yaw_change / num_steps
                 
@@ -142,6 +143,8 @@ function apply_yaw_rate_limit!(yaws, max_yaw_rate)
         end
     end
 end
+
+
 
 #generates an initial guess aligned with the middle point of the uniform time segments
 function generate_initial_guess(sim, wind, wf, n_segments)
@@ -223,6 +226,7 @@ end
 function parallel_costfunction(plt, set::Settings, wf::WindFarm, wind::Wind, sim::Sim, con::Con, vis::Vis, floridyn::FloriDyn, floris::Floris, opt_set::OptimisationSettings)
     
     return function cost(x)
+        
         state = tlv[][]
         penalty_term = 0.0
     
@@ -319,7 +323,7 @@ end
     #value is given by largest_length_scale / u / dt
     #@infiltrate
 
-    return -sum(powervector[(nT*num_timesteps_to_skip+1):end] ) / (nT * (nsteps - num_timesteps_to_skip)) * 1000.0
+    return -sum(@view powervector[(nT*num_timesteps_to_skip+1):end] ) / (nT * (nsteps - num_timesteps_to_skip)) * 1000.0
     
     
 end

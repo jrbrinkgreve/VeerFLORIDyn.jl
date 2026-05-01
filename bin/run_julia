@@ -25,9 +25,9 @@ if [[ "${USE_REVISE:-true}" == "true" ]]; then
     if ! ("Timers" in globaldependencies()); Pkg.add("Timers"); end;
     if ! ("Revise" in globaldependencies()); Pkg.add("Revise"); end;
     if ! ("ControlPlots" in globaldependencies()); Pkg.add("ControlPlots"); end;'
-    # Run Julia with 8 threads and load FLORIdyn
+    # Run Julia with 8 threads and load FLORIDyn
     # In addition, define the function menu()
-    julia --project -t 4 --gcthreads=3,1 -i -e 'using Revise; using FLORIDyn; function menu(); include("examples/menu.jl"); end'
+    julia --project -t 36 --gcthreads=12,0 -i -e  'using Revise; using FLORIDyn; function menu(); include("examples/menu.jl"); end'
 else
     echo "Revise is OFF"
     # Install TerminalPager and Timers and Revise and ControlPlots globally, if not yet installed
@@ -36,12 +36,12 @@ else
     if ! ("TerminalPager" in globaldependencies()); Pkg.add("TerminalPager"); end;
     if ! ("Timers" in globaldependencies()); Pkg.add("Timers"); end;
     if ! ("ControlPlots" in globaldependencies()); Pkg.add("ControlPlots"); end;'
-    # Run Julia with 11 threads and load FLORIdyn
+    # Run Julia with 11 threads and load FLORIDyn
     # In addition, define the function menu()
     if [[ $julia_major == "1.12" ]]; then
         julia --project -t 8,1 -i --gcthreads=4,0 -e 'using FLORIDyn; function menu(); include("examples/menu.jl"); end'
     else
-        julia --project -t 4 --gcthreads=3,1 -i -e 'using FLORIDyn; function menu(); include("examples/menu.jl"); end'
+        julia --project -t 11 --gcthreads=4,4 -i -e 'using FLORIDyn; function menu(); include("examples/menu.jl"); end'
     fi
 fi
 

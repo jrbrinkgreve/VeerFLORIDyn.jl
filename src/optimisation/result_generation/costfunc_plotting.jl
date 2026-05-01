@@ -6,6 +6,9 @@
 using Infiltrator
 using Plots
 using JLD2
+using Base.Threads
+
+
 include("../functions.jl")
 include("../../../examples/remote_plotting.jl")
 
@@ -70,7 +73,7 @@ function run_cost_sweep(set, wf, wind, sim, con, floridyn, floris, plt, vis, x_a
 
     return matrix
 end
-using Base.Threads
+
 
 function run_cost_sweep_multithreaded(set, wf, wind, sim, con, floridyn, floris, plt, vis, x_array, y_array)
     n_x    = length(x_array)
@@ -116,7 +119,7 @@ x_array = range(wind_dir_general - sweep_size, wind_dir_general + sweep_size, le
 y_array = range(wind_dir_general - sweep_size, wind_dir_general + sweep_size, length=N)
 
 #comment out to not rerun
-#matrix = run_cost_sweep_multithreaded(set, wf, wind, sim, con, floridyn, floris, plt, vis, x_array, y_array)
+matrix = run_cost_sweep_multithreaded(set, wf, wind, sim, con, floridyn, floris, plt, vis, x_array, y_array)
 
 
 
@@ -258,7 +261,7 @@ function plot_cost_landscape_relative(matrix, x_array, y_array, wind, veer)
     # --- Final Layout Adjustment ---
     # Moving legend to :topleft avoids the colorbar on the right entirely
     # Alternatively, use :outertopright but increase the right margin
-    p = plot(p1; 
+    p = plot(p1;  
         size=(600, 500), 
         margin=2Plots.mm, 
         legend=:topleft, # Change to :topleft to avoid the right side clash

@@ -1,11 +1,11 @@
 using Plots
 #plotting the regularisation results
 function regularisation_results()
-    lambda_vals   = [1e3, 5e3, 1e4, 2e4, 5e4]
-    lambda_labels = ["10³", "5×10³", "10⁴", "2×10⁴", "5×10⁴"]
+        lambda_vals   = [1e3, 2e3, 3e3, 5e3, 8e3, 1e4, 2e4, 5e4]
+        lambda_labels = ["10³", "2×10³", "3×10³", "5×10³", "8×10³", "10⁴", "2×10⁴", "5×10⁴"]
 
-    P_pct  = [2.51,  2.44,  1.71,  0.25,  -1.35]
-    norm1  = [51.01, 46.93, 32.60, 15.86,   6.58]
+        P_pct  = [2.51,  2.52,  2.48,  2.44,  2.10,  1.71,  0.25,  -1.35]
+        norm1  = [51.01, 50.93, 48.77, 46.93, 38.96, 32.60, 15.86,   6.58]
 
     p1 = plot(lambda_vals, norm1,
         xscale=:log10,
@@ -200,11 +200,47 @@ function veer_results()
 end
 
 
-regularisation_results()
+
+function runtime_results_threads()
+    threads = [1,  2,      4,      6,      8,      10,     12,     14,     16,     18]
+    t       = [1451.53, 829.62, 548.02, 394.80, 344.60, 316.82, 284.94, 267.93, 247.30, 246.30]
+    gc      = [5.57,    7.99,   12.91,  19.37,  22.00,  25.38,  24.67,  26.99,  29.45,  30.72]
+
+    p = plot(threads, gc,
+        ylabel="GC time (%)",
+        label="GC time",
+        color=:coral,
+        marker=:diamond,
+        linewidth=2,
+        title="Runtime & GC Time % vs. Thread Count",
+        xticks=(threads, string.(threads)),
+        xlabel="Threads",
+        ylims=(0,35),
+        yticks=0:5:35,
+        legend=:top,
+        gridalpha=0.4)
+    plot!(twinx(), threads, t,
+        ylabel="Runtime (s)",
+        label="Total runtime",
+        color=:steelblue,
+        marker=:circle,
+        linewidth=2,
+        yticks=0:250:1500,
+        ylims=(0, 1500),
+        grid=false,
+        legend=:right),
+        
+    plot(p,
+        size=(600, 300),
+    )
+    savefig("output/runtime_results_threads.pdf")
+end
+
+#regularisation_results()
 #convexity_analysis_results()
 #l0_norm_results()
-veer_results()
-
+#veer_results()
+runtime_results_threads()
 
 
 nothing
