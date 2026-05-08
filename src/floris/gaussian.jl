@@ -83,6 +83,7 @@ getVars!(sig_y, sig_z, x0, delta, pc_y, pc_z, RPs, Ct, yaw, TI, TI0, floris, D)
 Returns
 - `nothing` — all results are written into the provided arrays.
 """
+
 function getVars!(sig_y::AbstractVector{<:Real},
                   sig_z::AbstractVector{<:Real},
                   x_0::AbstractVector{<:Real},

@@ -38,3 +38,9 @@ turbines:
     nacelle_position: [0.0, 0.0, 150.0]
     rotor_diameter: 220.0
     description: "GE Haliade X offshore wind turbine"
+
+
+  "NREL 5MW":
+    nacelle_position: [0.0, 0.0, 90.0]  
+    rotor_diameter: 126.0                
+    description: "NREL 5MW reference turbine "

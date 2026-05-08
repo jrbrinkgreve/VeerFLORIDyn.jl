@@ -589,7 +589,7 @@ function plotFlowFieldCrossSection(plt, wf, A, Zh, Z, vis, fixed::Real, t=nothin
     mz_2d = Z[:, :, Int(msr)]
 
     if msr == VelReduction
-        figure_name = "Velocity Reduction (Cross-Section)"
+        figure_name = "Velocity Reduction"
         label       = "Relative Wind Speed [%]"
         mz_2d .*= 100
         lev_min = vis.rel_v_min; lev_max = vis.rel_v_max
@@ -616,7 +616,7 @@ function plotFlowFieldCrossSection(plt, wf, A, Zh, Z, vis, fixed::Real, t=nothin
         fixed_axis = "y"
     end
 
-    title = figure_name * ", $(fixed_axis) = $(round(Int, fixed)) m"
+    title = figure_name
     if t !== nothing
         time_str = lpad(string(round(Int, t)), 4, '0')
         title = title * ", t: " * time_str * " s"

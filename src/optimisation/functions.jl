@@ -322,10 +322,10 @@ end
     #num_timesteps_to_skip is to skip the first 'uninitialised' timesteps
     #value is given by largest_length_scale / u / dt
     #@infiltrate
-
-    return -sum(@view powervector[(nT*num_timesteps_to_skip+1):end] ) / (nT * (nsteps - num_timesteps_to_skip)) * 1000.0
-    
-    
+        
+        return -sum(@view powervector[(nT*num_timesteps_to_skip+1):end] ) / (nT * (nsteps - num_timesteps_to_skip)) * 1000.0
+        
+        
 end
 
 

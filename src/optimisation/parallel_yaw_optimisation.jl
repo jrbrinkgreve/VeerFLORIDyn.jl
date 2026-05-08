@@ -23,7 +23,7 @@ plt=nothing
 include("../../examples/remote_plotting.jl")
 include("optimisationstructs.jl")
 include("functions.jl")
-
+include("result_generation/helper_functions.jl")
 
 
 #BLAS/multithreading 
@@ -82,7 +82,7 @@ init_tlv!()
 
 #sim 
 set_num_yaw_changes = 4        #N
-set_max_yaw_misalignment = 25.0 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
+set_max_yaw_misalignment = 25 #deg, for penalising large yaw angles in the cost function, for stability and convergence reasons
 set_lambda_l1 = 0            #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf  #a limit on the maximum total yaw change in a simulation, in degrees
 set_max_yaw_rate = 1.0          #deg/s
@@ -96,6 +96,9 @@ set_iterations = 50                # 50     #number of iterations for CMAES
 set_sigma0 = 0.05                  # 0.05   #for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.05 then 0.01 
 set_sigma0_secondary = 0.02        # 0.02   #for second run with yaws, to reduce the search area and converge faster, can play around with this #0.01
 set_sigma0_final = 0.01            # 0.01  #for final run 
+
+verbose = true
+trace_steps = 5
 
 
 
@@ -129,8 +132,8 @@ opts = Evolutionary.Options(
     iterations = set_iterations,
     abstol = 1e-2,
     reltol = 1e-5,          #1e-8
-    show_trace = true,
-    show_every = 5, 
+    show_trace = verbose,
+    show_every = trace_steps, 
     store_trace = true,
     parallelization = :thread  #serial   #thread           #multithreading hehe
 )
@@ -268,6 +271,10 @@ con.yaw_data = zeros(sim.end_time - sim.start_time + 1, wf.nT + 1) #preallocate 
 vis.online = false 
 
 
+val, arg = max_yaw_misalignment(result.minimizer)
+println("Maximum yaw misalignment: $(round(val, digits=3)) degrees, at time step $(arg)")
+
+
 #plot flowfield
 #=
 construct_yaw_matrix_dynamic!(con.yaw_data, x0, sim, wf, opt_set);
@@ -304,11 +311,15 @@ include("calculate_increase_over_baseline.jl")  #to calculate the increase over 
 
 
 
+
+
 GC.gc()
 
 #endregion PLOTTING & POSTPROCESSING
 
 
+
+println("==========================================")
 #notes----------------------------------------------------------------------------------------------------------
 #=
 

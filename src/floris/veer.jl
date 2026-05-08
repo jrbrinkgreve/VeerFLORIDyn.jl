@@ -318,7 +318,7 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
     mean_x /= nRP
 
    
-    #@infiltrate
+
     #get Mohammadi model: (delta)velocity field writting inplace to du / u
     get_velocity_veer!(  
         tmp_RPs,
@@ -348,10 +348,34 @@ function compute_wake_effects_veer!(buffers, views, iT, RPl, RPw, location_t, st
     @inbounds for i in 1:nRP
         acc = muladd(RPw[i], du[i] ./ c[i]  , acc)   
     end                                                 
-    #@infiltrate
+
     
     buffers.T_aTI_arr[iT] = T_addedTI_tmp * acc
     buffers.T_weight[iT] = acc
+
+    #=
+                UPDATE: TO GET TURBULENCE AT TIPS 
+        T_addedTI_tmp = floris.k_fa * (
+            a_val^floris.k_fb *
+            TI0^floris.k_fc *
+            (mean_x / d_rotor[iT])^floris.k_fd
+        )
+
+        TIexp = floris.TIexp
+
+        acc = 0.0
+        @inbounds for i in 1:nRP
+            # Use Mohammadi's wake center (y_c) and width (sigma) 
+            # instead of FLORIS delta/sig_y/sig_z
+            y_term = (coords_veered[i,2] - y_c[i]) / (TIexp * sigma[i])
+            z_term = (coords_veered[i,3] - z_hub)  / (TIexp * sigma[i])
+            gauss = exp(-0.5 * y_term^2) * exp(-0.5 * z_term^2)
+            acc = muladd(RPw[i], gauss, acc)
+        end
+
+        buffers.T_aTI_arr[iT] = T_addedTI_tmp * acc
+        buffers.T_weight[iT]  = acc
+    =#
     
     #T_weight is approx the percentage of wake overlap
     
@@ -423,8 +447,10 @@ function get_velocity_veer!(rps_coords,
     pim1 = pi - 1.0
     nRP, _ = size(rps_coords)
     R = D / 2.0
-    
+    I = sqrt(ti^2 + ti0^2)
 
+    
+    
 
 
     
@@ -501,13 +527,17 @@ function get_velocity_veer!(rps_coords,
         end
         
 
+        #AAAAAA note: this is still using floris.k, and not the changed one!!
+        #floris.k --> k_eff
+        k_eff = (floris.k_a * I + floris.k_b) * u_in_z[i] / floris.u_star
+
 
         xi[i] = xi_0[i] * xi_hat[i]
         sigma_hat_squared[i] = (
-            (floris.k * floris.u_star / (u_in_z[i])  * coords_veered[i,1] + 0.4 * xi_0_hat[i]) *
-            (floris.k * floris.u_star / (u_in_z[i])  * coords_veered[i,1] + 0.4 * xi_0_hat[i] * cos(gamma[i]))
+            (k_eff * floris.u_star / (u_in_z[i])  * coords_veered[i,1] + 0.4 * xi_0_hat[i]) *
+            (k_eff * floris.u_star / (u_in_z[i])  * coords_veered[i,1] + 0.4 * xi_0_hat[i] * cos(gamma[i]))
         ) # == (kx + 0.4 xi_0_hat     )(         ) 
-        sigma[i] = (floris.k * floris.u_star / (u_in_z[i])  * coords_veered[i,1] + 0.4 * xi[i])
+        sigma[i] = (k_eff * floris.u_star / (u_in_z[i])  * coords_veered[i,1] + 0.4 * xi[i])
 
         #eq 15: velocity deficit
         #note the max(0.05, ... ) to limit the max deficit to 95%

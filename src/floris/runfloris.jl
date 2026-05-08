@@ -700,8 +700,7 @@ function runFLORIS!(buffers, set::Settings, location_t, states_wf, states_t, d_r
     RPl, RPw = prepare_rotor_points!(buffers, location_t, states_t, d_rotor, floris)
     nRP = size(RPl, 1)
     nT = length(d_rotor)
-
-    if set.enable_veer == true
+    if set.enable_veer == true 
         #THIS SECTION IS WITH VEER ENABLED
 
         #print("veer processing\n")

@@ -39,7 +39,8 @@ xticks=(yaw_discrete, string.(yaw_discrete)),
 yticks=-12:2:4,
 ylims=(-12.5, 4.5),
 legend=:bottomright,
-size=(600, 300)
+size=(600, 300),
+leftmargin=5Plots.mm,
 )
 
 # Add the 0% reference line (dashed grey)

@@ -155,11 +155,11 @@ end
 import Random   # needed for MersenneTwister
 
 report = check_convexity_random(cost_func, result.minimizer;
-             N           = 100,     # number of random directions
-             num_points  = 51,     # points per 1D scan
+             N           = 10000,     # number of random directions
+             num_points  = 101,     # points per 1D scan
              half_width  = 0.5,     # scan ± 0.5 around x★ along each direction
              atol        = 1.0,     # tolerance (match your original)
-             seed        = 42,      # reproducible direction sampling
+             seed        = 420,      # reproducible direction sampling
              n_threads   = true)
 
 # Inspect failures in detail
