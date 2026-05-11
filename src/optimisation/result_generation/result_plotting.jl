@@ -1,11 +1,14 @@
 using Plots
 #plotting the regularisation results
 function regularisation_results()
-        lambda_vals   = [1e3, 2e3, 3e3, 5e3, 8e3, 1e4, 2e4, 5e4]
-        lambda_labels = ["10³", "2×10³", "3×10³", "5×10³", "8×10³", "10⁴", "2×10⁴", "5×10⁴"]
+        lambda_vals = [0, 1000, 2000, 3000, 5000, 7000, 10000, 20000, 30000, 50000]
+        lambda_labels = ['0e0', '1e3', '2e3', '3e3', '5e3', '7e3', '1e4', '2e4', '3e4', '5e4']
 
-        P_pct  = [2.51,  2.52,  2.48,  2.44,  2.10,  1.71,  0.25,  -1.35]
-        norm1  = [51.01, 50.93, 48.77, 46.93, 38.96, 32.60, 15.86,   6.58]
+        # Increase over baseline (%)
+        P_pct = [1.72, 1.70, 1.71, 1.65, 1.5, 1.26, 0.85, 0.0, -0.75, -1.74]
+
+        # Optimized average L1 yaw change norm
+        norm1 = [51.91, 49.95, 48.31, 44.69, 39.25, 32.78, 24.77, 14.72, 9.83, 5.14]
 
     p1 = plot(lambda_vals, norm1,
         xscale=:log10,
