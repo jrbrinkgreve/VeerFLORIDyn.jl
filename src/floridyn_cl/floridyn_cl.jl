@@ -775,6 +775,7 @@ function runFLORIDyn(plt, set::Settings, wf::WindFarm, wind::Wind, sim, con, vis
                           msr=VelReduction, debug=nothing)
     nT = wf.nT
     sim_steps = sim.n_sim_steps
+
     ma = zeros(sim_steps * nT, 6)
     ma[:, 1] .= 1.0  # Set first column to 1
     vm_int   = Vector{Matrix{Float64}}(undef, sim_steps)

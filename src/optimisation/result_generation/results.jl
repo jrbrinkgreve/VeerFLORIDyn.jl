@@ -144,6 +144,7 @@ Baseline average power per turbine:  3780.11 kW
 Optimized average power per turbine: 3798.91 kW
 Increase over baseline: -3.00 %
 
+
 Baseline average L1 yaw change norm: 0.0 deg
 Optimized average L1 yaw change norm: 0.0 deg
 
@@ -157,7 +158,8 @@ Maximum yaw misalignment: 15.446 degrees, at time step CartesianIndex(2855, 1)
 
 Baseline average power per turbine:  3864.92 kW
 Optimized average power per turbine: 3910.74 kW
-Increase over baseline: -0.16 %
+Increase over baseline: -0.16 % 
+
 
 Baseline average L1 yaw change norm: 22.78 deg
 Optimized average L1 yaw change norm: 20.45 deg
@@ -177,6 +179,7 @@ Maximum yaw misalignment: 19.588 degrees, at time step CartesianIndex(1203, 4)
 Baseline average power per turbine:  3906.92 kW
 Optimized average power per turbine: 3938.71 kW
 Increase over baseline: 0.57 %
+vs L1==4 baseline 
 
 Baseline average L1 yaw change norm: 30.37 deg
 Optimized average L1 yaw change norm: 28.33 deg
@@ -187,6 +190,15 @@ Optimized average L1 yaw change norm: 28.33 deg
 L0==4
 -
 
+optim time 265.08 s
+max misalignment 24.99deg
+
+Baseline power 3916.40 kW
+Optimised power 3983.64 kW
+P% 1.72%
+
+baseline L1 norm 34.17 deg
+optimised L1 norm 51.91
 
 
 

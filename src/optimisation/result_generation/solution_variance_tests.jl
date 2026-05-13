@@ -49,7 +49,7 @@ println("Std:    ", std(p_increase) * 100, " %" )
 
 
 control_instructions = [r[1].minimizer for r in all_results]
-
+yawing_magnitudes = 
 
 nothing
 

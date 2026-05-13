@@ -401,6 +401,7 @@ function init_states(set::Settings, wf::WindFarm, wind::Wind, init_turb, floris:
             # The actual RW_with_Mean logic will be handled in the correction phase
             u = 8.0  # Default wind speed for initialization
         else
+            
             u = getWindSpeedT(set.vel_mode, wind.vel, iT, startTime)
         end
 

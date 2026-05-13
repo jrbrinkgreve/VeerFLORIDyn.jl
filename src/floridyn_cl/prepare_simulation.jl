@@ -154,22 +154,33 @@ function prepareSimulation(set::Settings, wind::Wind, con::Con, floridyn::FloriD
 
     nT = size(turbProp.pos, 1)
     input_vel = wind.input_vel
+
     if input_vel == "I_and_I"
         wind.vel.WSE = WSEParameters(nT, sim.path_to_data, sim.TimeStep)
         wind.vel.TimePrev = sim.start_time
         wind.vel.start_time = sim.start_time
-    # elseif input_vel == "Interpolation"
-    #     try
-    #         wind.Vel = CSV.read("WindVel.csv", DataFrame)
-    #     catch
-    #         push!(loadDataWarnings, "WindVel.csv not found.")
-    #     end
-    # elseif input_vel == "InterpTurbine"
-    #     try
-    #         wind.Vel = CSV.read("WindVelTurbine.csv",!DataFrame)
-    #     catch
-    #         push!(loadDataWarnings, "WindVelTurbine.csv not found, default created.")
-    #     end
+    elseif input_vel == "Interpolation"
+         try 
+            path = joinpath(vel_file_dir, "WindVel.csv")
+            if !isfile(path)
+                path = joinpath(pkg_path, path)
+            end
+            if !isfile(path)
+                @error "WindVel.csv not found in $vel_file_dir"
+            end
+            df = CSV.read(path, DataFrame; header=false)
+            wind.vel = [df[:,1] df[:,2]]  # Assuming the velocity values are in the first column
+          
+        catch
+            push!(loadDataWarnings, "WindVel.csv not found!")
+        end
+    elseif input_vel == "InterpTurbine"
+        try
+            wind.vel = CSV.read("WindVelTurbine.csv",!DataFrame)
+        catch
+            push!(loadDataWarnings, "WindVelTurbine.csv not found, default created.")
+        end
+    
     elseif input_vel == "Constant"
         try 
             path = joinpath(vel_file_dir, "WindVelConstant.csv")
@@ -184,7 +195,10 @@ function prepareSimulation(set::Settings, wind::Wind, con::Con, floridyn::FloriD
         catch
             push!(loadDataWarnings, "WindVelConstant.csv not found!")
         end
+    
     end
+
+
     # elseif input_vel in ["ZOH_wErrorCov", "RW_with_Mean", "Interpolation_wErrorCov", "InterpTurbine_wErrorCov", "Constant_wErrorCov"]
     #     wind.Vel.Data = CSV.read("WindVelConstant.csv", DataFrame)
     #     VelCov = CSV.read("WindVelCovariance.csv", DataFrame)
@@ -255,8 +269,9 @@ function prepareSimulation(set::Settings, wind::Wind, con::Con, floridyn::FloriD
             path = joinpath(pkg_path, path)
         end
         try
-            df = CSV.read(path, DataFrame)
+            df = CSV.read(path, DataFrame, header=false)
             wind.ti = Matrix{Float64}(df)
+         
         catch e
             push!(loadDataWarnings, "WindTI.csv not found.")
             generateDemoCSV(data_path, "WindTI.csv", 2, nT, [0.0, 0.0], [100.0, 100.0])
