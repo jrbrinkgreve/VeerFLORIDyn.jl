@@ -476,6 +476,7 @@ Z, A, Zh = calcFlowFieldCrossSection(set, wf, wind, floris; fixed=1500.0, orient
 - [`plotFlowFieldCrossSection`](@ref): Plotting function for the generated data
 - [`calcFlowField`](@ref): XY flow field equivalent
 """
+
 function calcFlowFieldCrossSection(set::Settings, wf::WindFarm, wind::Wind, floris::Floris;
                                    fixed::Real, vis=nothing, xlims=nothing, orientation::Symbol=:NS)
     @assert orientation in (:NS, :WE) "orientation must be :NS or :WE"
@@ -489,7 +490,7 @@ function calcFlowFieldCrossSection(set::Settings, wf::WindFarm, wind::Wind, flor
         fieldRes = vis.field_resolution
     else
         a_min, a_max = xlims !== nothing ? (xlims[1], xlims[2]) : (0.0, 3000.0)
-        z_min, z_max = 0.0, 400.0
+        z_min, z_max = 0.0, 1000.0
         fieldRes = 20.0
     end
 

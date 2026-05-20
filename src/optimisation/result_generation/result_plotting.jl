@@ -1,4 +1,7 @@
+using JLD2
 using Plots
+using Evolutionary
+
 plot = Plots.plot
 savefig = Plots.savefig
 #plotting the regularisation results
@@ -137,6 +140,50 @@ function l0_norm_results()
 end
 
 
+
+
+function runtime_results_threads()
+    n_workers = [1, 2, 4, 6, 8, 10, 12, 14, 16, 18]
+    runtime   = [1562.21, 892.88, 589.81, 424.90, 370.87, 340.98, 306.67, 288.36, 266.16, 265.08]
+    gc_pct    = [5.57,    7.99,   12.91,  19.37,  22.00,  25.38,  24.67,  26.99,  29.45,  30.72]
+
+    p1 = plot(n_workers, runtime,
+        ylabel="Runtime\n(s)",
+        ylims=(0.0, 1600.0),
+        yticks=0.0:200.0:1600.0,
+        label="Runtime (s)",
+        color=:coral,
+        marker=:diamond,
+        linewidth=2,
+        title="Optimisation Time vs. Workers",
+        xticks=(n_workers, string.(n_workers)),
+        xlabel="No. Workers",
+        legendfontsize=8,
+        legend=:bottomright,
+        grid=true,
+        gridalpha=0.4)
+    plot!(twinx(), n_workers, gc_pct,
+        ylabel="GC Time\n(%)",
+        ylims=(0.0, 40.0),
+        yticks=0.0:5.0:40.0,
+        label="GC %",
+        color=:mediumseagreen,
+        marker=:circle,
+        linewidth=2,
+        legend=:topright,
+        grid=false)
+    plot(p1,
+        size=(700, 350),
+        left_margin=5Plots.mm,
+        right_margin=15Plots.mm,
+        ygrid=true,
+        xgrid=true,
+        gridalpha=0.4,
+        bottom_margin=5Plots.mm)
+    savefig("output/optimisation_time_results.pdf")
+end
+
+
 function veer_results()
     alpha_vals = [0.0, 0.01, 0.03, 0.05, 0.07, 0.1, 0.15, 0.2]
 
@@ -249,6 +296,28 @@ end
 
 
 
+load = JLD2.load
+# load("path")["key_name"] directly extracts the data
+res_1000  = load("src/optimisation/optim_data/minimisers/lambda_reg_1000.0.jld2")["result"]
+res_2000  = load("src/optimisation/optim_data/minimisers/lambda_reg_2000.0.jld2")["result"]
+res_3000  = load("src/optimisation/optim_data/minimisers/lambda_reg_3000.0.jld2")["result"]
+res_5000  = load("src/optimisation/optim_data/minimisers/lambda_reg_5000.0.jld2")["result"]
+res_7000  = load("src/optimisation/optim_data/minimisers/lambda_reg_7000.0.jld2")["result"]
+res_10000 = load("src/optimisation/optim_data/minimisers/lambda_reg_10000.0.jld2")["result"]
+res_20000 = load("src/optimisation/optim_data/minimisers/lambda_reg_20000.0.jld2")["result"]
+res_30000 = load("src/optimisation/optim_data/minimisers/lambda_reg_30000.0.jld2")["result"]
+res_50000 = load("src/optimisation/optim_data/minimisers/lambda_reg_50000.0.jld2")["result"]
+
+# Your plotting code goes here...
+
+
+
+
+
+
+
+
+
 
 
 
@@ -258,11 +327,11 @@ end
 
 #regularisation_results()
 #convexity_analysis_results()
-l0_norm_results()
+#l0_norm_results()
 #veer_results()
 #runtime_results_threads()
-yaw_limit_results()
-
+#yaw_limit_results()
+plot_dynamic_response_lambda_reg()
 
 
 

@@ -256,7 +256,7 @@ function parallel_costfunction(plt, set::Settings, wf::WindFarm, wind::Wind, sim
                 state.sim, state.con, state.vis, state.floridyn, state.floris)
             
             #objective
-            return totalEnergyObjective(state.power_vector, state.wf.nT, state.sim.n_sim_steps, opt_set.set_num_timesteps_to_skip) + penalty_term  #in kW per turbine
+            return opt_set.set_objective(state.power_vector, state.wf.nT, state.sim.n_sim_steps, opt_set.set_num_timesteps_to_skip) + penalty_term  #in kW per turbine
 
         catch e
             # 1. If the user hits Ctrl+C, let it happen!
@@ -327,6 +327,39 @@ end
         
         
 end
+
+
+function totalEnergyObjectivePlusCurvatureRegulariser(
+    powervector, nT, nsteps, num_timesteps_to_skip=125, lambda=3e5
+)
+    active_start = nT * num_timesteps_to_skip + 1
+    nActive_steps = nsteps - num_timesteps_to_skip
+
+    # Primary objective: maximise mean power (same as before)
+    energy_sum = zero(eltype(powervector))
+    for i in active_start:length(powervector)
+        energy_sum += powervector[i]
+    end
+    energy_term = -energy_sum / (nT * nActive_steps) * 1000.0
+
+    # Curvature regulariser: discrete second differences on aggregate power per timestep
+    curvature = zero(eltype(powervector))
+    @inbounds for t in 2:(nActive_steps - 1)
+        p_prev = zero(eltype(powervector))
+        p_curr = zero(eltype(powervector))
+        p_next = zero(eltype(powervector))
+        @inbounds for j in 1:nT
+            p_prev += powervector[active_start + nT*(t-2) + j - 1]
+            p_curr += powervector[active_start + nT*(t-1) + j - 1]
+            p_next += powervector[active_start + nT*(t-0) + j - 1]
+        end
+        curvature += (p_next - 2*p_curr + p_prev)^2
+    end
+    curvature_term = lambda * curvature / (nActive_steps - 2)
+
+    return energy_term + curvature_term
+end
+
 
 
 

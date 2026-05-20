@@ -711,9 +711,7 @@ function setUpTmpWFAndRun!(ub::UnifiedBuffers, wf::WindFarm, set::Settings, flor
         ub.M_buffer[iT, 1] = T_red
         ub.M_buffer[iT, 2] = T_addedTI
         ub.M_buffer[iT, 3] = T_Ueff_s
-        #probably add something to the M buffer for veered power calculations
-        #or apply a general correction to the power calculation dependent on the veer strength,
-        #will need to add that data link though
+        
 
 
         wS = sum(wf.Weight[iT])

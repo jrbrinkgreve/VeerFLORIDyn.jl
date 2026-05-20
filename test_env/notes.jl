@@ -607,7 +607,53 @@ turbine_groups:
 
 
 
+================================================================================================================================================
+
+if we just make a con.yaw constructor which fixed the past control input, and perturbs the
+  wind.dir data, we can easily make an MPC-type controller which has the established flowfield data,
+  predicts the best instruction for the future, and then applied the first step!
+
+
+in pseudocode:
+
+
+data = load_past_data
+weather_prediction = load_weather_prediction
+con.yaw_data = optimise(past_info, prediction)
+apply_control(con.yaw_data)
+
+repeat
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 =#
+
+
 
 
 

@@ -43,8 +43,6 @@ end
 # All dependencies are now explicit parameters — no globals captured
 function calc_power(md, nT::Int, n_sim_steps::Int, num_timesteps_to_skip)
 
-
-
     return sum(md.PowerGen[(nT*num_timesteps_to_skip+1):end] ) / (nT * (n_sim_steps - num_timesteps_to_skip)) * 1000.0
 
 
@@ -111,7 +109,7 @@ function run_cost_sweep_multithreaded(set, wf, wind, sim, con, floridyn, floris,
 end
 
 
-N = 81
+N = 161
 wind_dir_general = 195.0
 sweep_size = 80.0
 
@@ -119,7 +117,7 @@ x_array = range(wind_dir_general - sweep_size, wind_dir_general + sweep_size, le
 y_array = range(wind_dir_general - sweep_size, wind_dir_general + sweep_size, length=N)
 
 #comment out to not rerun
-matrix = run_cost_sweep_multithreaded(set, wf, wind, sim, con, floridyn, floris, plt, vis, x_array, y_array)
+#matrix = run_cost_sweep_multithreaded(set, wf, wind, sim, con, floridyn, floris, plt, vis, x_array, y_array)
 
 
 
@@ -258,6 +256,16 @@ function plot_cost_landscape_relative(matrix, x_array, y_array, wind, veer)
         label             = "Baseline (0.0°, 0.0°)"
     )
 
+    # no-veer optimum:
+    scatter!(p1, [22.0], [23.0],
+        marker            = :diamond,
+        markersize        = 8,
+        color             = :white,
+        markerstrokecolor = :black,
+        markerstrokewidth = 1,
+        label             = "Optimum at 0°/m Veer (22.0°, 23.0°)"
+    )
+
     # --- Final Layout Adjustment ---
     # Moving legend to :topleft avoids the colorbar on the right entirely
     # Alternatively, use :outertopright but increase the right margin
@@ -277,4 +285,4 @@ using JLD2
 
 
 
-plot_cost_landscape_relative(matrix, x_array, y_array, wind, 0.20)
+plot_cost_landscape_relative(matrix, x_array, y_array, wind, floris.veer_gradient)

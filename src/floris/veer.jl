@@ -591,7 +591,7 @@ function compute_final_wind_shear_veer!(buffers, RPl, RPw, location_t, set::Sett
     
     # Compute z for wind shear:
     # - Power law expects normalized height (clamped positive)
-    # - Interpolation expects absolute height (meters)
+    # - Interpolation expects height normalized by hub height 
     if set.shear_mode isa Shear_PowerLaw
         @inbounds for i in 1:nRP
             val = RPl[i, 3] / location_t[end, 3]
@@ -604,6 +604,7 @@ function compute_final_wind_shear_veer!(buffers, RPl, RPw, location_t, set::Sett
         end
     end
 
+
     redShear = getWindShearT(set.shear_mode, windshear, tmp_RPs_r)
     buffers.T_red_arr[end] = dot(RPw, redShear)
 
@@ -611,7 +612,7 @@ function compute_final_wind_shear_veer!(buffers, RPl, RPw, location_t, set::Sett
     T_Ueff_scalar = states_wf[end, 1] * T_red
     
     
-
+    
     resize!(buffers.T_Ueff, 1); buffers.T_Ueff[1] = T_Ueff_scalar
     nothing
 end

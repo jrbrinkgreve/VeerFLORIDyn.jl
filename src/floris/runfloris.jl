@@ -587,7 +587,7 @@ function compute_final_wind_shear!(buffers, RPl, RPw, location_t, set::Settings,
         end
     end
 
-    
+   
     redShear = getWindShearT(set.shear_mode, windshear, tmp_RPs_r)
     buffers.T_red_arr[end] = dot(RPw, redShear)
     #println(buffers.T_red_arr')

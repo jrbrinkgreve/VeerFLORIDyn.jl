@@ -16,7 +16,7 @@ if Threads.nthreads() == 1; using ControlPlots; end
 
 #get the visualisation and settings
 vis_file = "data/vis_default.yaml"
-settings_file = "data/REALWF_CONTROLTEST_VEER.yaml"   #custom data file with veer specification
+settings_file = "data/REALWF_CONTROLTEST_VEER.yaml"   #   "data/JHTDB_comparison_turbines.yaml"   #"data/REALWF_CONTROLTEST_VEER.yaml"   #custom data file with veer specification
 vis = Vis(vis_file)
 plt=nothing
 
@@ -87,7 +87,7 @@ set_max_yaw_misalignment = 25 #deg, for penalising large yaw angles in the cost 
 set_lambda_l1 = 0            #1e3  #units: cost PER DEGREE, per turbine, PER SECOND #relative to the beneficial term average kW per turbine #typical value 1e3, can play around with this
 set_lambda_l1_hard_limit = Inf  #a limit on the maximum total yaw change in a simulation, in degrees
 set_max_yaw_rate = 1.0          #deg/s
-set_objective = totalEnergyObjective   #totalEnergyObjective or powerTrackingObjective al
+set_objective = totalEnergyObjective   #totalEnergyObjective or totalEnergyObjectivePlusCurvatureRegulariser
 set_num_timesteps_to_skip = 125     #skip the first N timesteps for wake effects to propagate, approx time between wake interactions
 
 #optimiser convergence/ fidelity  
@@ -170,6 +170,7 @@ begin_time = time()
 
 #store trace
 push!(all_traces, result.trace)
+
 
 #println("Result 1")
 #println(result)

@@ -1,20 +1,29 @@
 
-
-
+using JLD2
+println()
+println("AAAAAA check if files are not overwriting ")
 include("helper_functions.jl")
-#code for averaged result generation
-array = [1e3, 2e3, 3e3, 5e3, 7e3, 1e4, 2e4, 3e4, 5e4]
-for set_lambda_l1 in array
-    @eval set_lambda_l1 = $set_lambda_l1
-    include("../parallel_yaw_optimisation.jl")
-end
+println()
+array = ["AAA change veer yourself!"]
 
+for value in array
+    println("Running for value: ", value)
+    #@eval set_num_yaw_changes = $value
+    include("../parallel_yaw_optimisation.jl")
+    
+    save_dir = joinpath(@__DIR__, "..", "optim_data", "minimisers")
+    
+    file_path = joinpath(save_dir, "veer_$(floris.veer_gradient).jld2")
+
+    jldsave(file_path; result)
+end
 
 #=
 YAW LIMITS
 
 =======================================================
 Inf deg limit
+
 
 
 Total optimization time: 322.63 seconds
@@ -30,7 +39,7 @@ Optimized average L1 yaw change norm: 54.79 deg
 
 
 =======================================================
-25deg limit
+25deg limit (single run)
 
 Total optimization time: 240.63 seconds
 Maximum yaw misalignment: 24.991 degrees, at time step CartesianIndex(1264, 6)

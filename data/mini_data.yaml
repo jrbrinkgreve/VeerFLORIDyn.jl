@@ -25,7 +25,7 @@ wind:
   # - InterpTurbine_wErrorCov
   # - RW_with_mean             random walk with mean
   input_dir: Constant #Interpolation   #Constant
-  dir_fixed: 195.0 #270.0 # fixed wind direction for 'Constant' method [°]
+  dir_fixed: 180.0 #270.0 # fixed wind direction for 'Constant' method [°]
 
   # Ambient Turbulence Intensity Input
   # - Interpolation
@@ -159,7 +159,7 @@ floris:
            
            
   #veer params:           
-  veer_gradient: 0.0 #-0.0448  #veer gradient in deg/m
+  veer_gradient: 0.0  #veer gradient in deg/m
 
 
   #mohammadi model params:
@@ -184,18 +184,84 @@ floridyn:
 turbines:
     - id: 1
       type: DTU 10MW
-      x: 1000.0
-      y: 1000.0
+      x: 1347.6
+      y: 919.0
       z: 0
       a: 0.33
       yaw: 0
       ti: 0.06
     - id: 2
       type: DTU 10MW
-      x: 1089.2
-      y: 2605.6000000000004
+      x: 1640.9
+      y: 1662.5
       z: 0
       a: 0.33
       yaw: 0
       ti: 0.06
-  
+    - id: 3
+      type: DTU 10MW
+      x: 2248.0
+      y: 1001.0
+      z: 0
+      a: 0.33
+      yaw: 0
+      ti: 0.06
+    - id: 4
+      type: DTU 10MW
+      x: 1934.2
+      y: 2406.0
+      z: 0
+      a: 0.33
+      yaw: 0
+      ti: 0.06
+    - id: 5
+      type: DTU 10MW
+      x: 3149.3
+      y: 1083.9
+      z: 0
+      a: 0.33
+      yaw: 0
+      ti: 0.06
+    - id: 6
+      type: DTU 10MW
+      x: 2227.5
+      y: 3149.5
+      z: 0
+      a: 0.33
+      yaw: 0
+      ti: 0.06
+    - id: 7
+      type: DTU 10MW
+      x: 4218.2
+      y: 1564.4
+      z: 0
+      a: 0.33
+      yaw: 0
+      ti: 0.06
+    - id: 8
+      type: DTU 10MW
+      x: 2520.8
+      y: 3893.0
+      z: 0
+      a: 0.33
+      yaw: 30
+      ti: 0.06
+    - id: 9
+      type: DTU 10MW
+      x: 4097.0
+      y: 2666.3
+      z: 0
+      a: 0.33
+      yaw: 0
+      ti: 0.06
+    - id: 10
+      type: DTU 10MW
+      x: 4036.4
+      y: 3711.2
+      z: 0
+      a: 0.33
+      yaw: 0
+      ti: 0.06
+
+
+
