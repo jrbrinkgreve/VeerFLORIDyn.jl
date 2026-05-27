@@ -91,12 +91,12 @@ set_objective = totalEnergyObjective   #totalEnergyObjective or totalEnergyObjec
 set_num_timesteps_to_skip = 125     #skip the first N timesteps for wake effects to propagate, approx time between wake interactions
 
 #optimiser convergence/ fidelity  
-set_num_optimiser_runs = 4        # 4       #number of automatic restarts for CMA-ES
-set_cmaes_lambda_multiplier = 4    # 4       #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
-set_iterations = 50                # 50     #number of iterations for CMAES
-set_sigma0 = 0.05                  # 0.05   #for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.05 then 0.01 
-set_sigma0_secondary = 0.02        # 0.02   #for second run with yaws, to reduce the search area and converge faster, can play around with this #0.01
-set_sigma0_final = 0.01            # 0.01  #for final run 
+set_num_optimiser_runs = 3          # 4       #number of automatic restarts for CMA-ES
+set_cmaes_lambda_multiplier = 3     # 4       #multiplier for the default lambda, which is 4 + 3 * log(N), N is dim of problem
+set_iterations = 30                 # 50     #number of iterations for CMAES
+set_sigma0 = 0.05                   # 0.05   #for time optim, 0.01 works well in second run for yaws!!     # set to 30% of the search range, and for yaw convergence: first 0.05 then 0.01 
+set_sigma0_secondary = 0.02         # 0.02   #for second run with yaws, to reduce the search area and converge faster, can play around with this #0.01
+set_sigma0_final = 0.01             # 0.01  #for final run 
 
 verbose = true
 trace_steps = 5

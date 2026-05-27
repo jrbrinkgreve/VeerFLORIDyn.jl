@@ -79,37 +79,104 @@ total_power_opt = vec(sum(power_matrix_opt, dims=1))
 total_power_opt_trimmed = total_power_opt[(num_timesteps_to_skip+1):end]
 power_opt_turbine_8_trimmed = power_matrix_opt[8, (num_timesteps_to_skip+1):end] * 1000.0  # Power of turbine 8 in kW, trimmed to match time axis
 
+total_power_opt_trimmed_normalised = total_power_opt_trimmed ./ total_power_trimmed
 
-plot_P_traces = true
 
-if plot_P_traces
-    # Create twin-axis plot: total farm power (left) + turbine 8 power (right)
+function power_comparison()
 
     plt_power = Plots.plot(
         time_axis, total_power_trimmed,
-        xlabel     = "Time (s)",
-        ylabel     = "Total Farm Power\n(MW)",
-        title      = "Total Farm Power vs Time",
-        label      = "Baseline",
-        lw         = 2,
-        color      = :steelblue,
-        legend     = :top,
-        legendfontsize = 8,
-        grid       = true,
-        gridalpha  = 0.4
+        xlabel         = "Time (s)",
+        ylabel         = "Total Farm Power\n(MW)",
+        title          = "Total Farm Power vs Time",
+        label          = "Baseline",
+        linewidth      = 3,
+        color          = :black,
+        legend         = :bottomright,
+        legendfontsize = 12,
+        tickfontsize = 12,
+        guidefontsize = 12,
+        grid           = true,
+        gridalpha      = 0.4
     )
-   Plots.plot!(
+
+    Plots.plot!(
         plt_power,
         time_axis, total_power_opt_trimmed,
         label = "Optimised",
-        lw    = 2,
-        color = :coral
+        linewidth    = 3,
+        alpha = 0.8
+    )
+
+    Plots.plot!(
+        plt_power,
+        size          = (700, 350),
+        left_margin   = 5Plots.mm,
+        right_margin  = 15Plots.mm,
+        bottom_margin = 5Plots.mm,
+        xgrid         = true,
+        ygrid         = true,
+        gridalpha     = 0.4,
+        xticks        = 500:500:4000
     )
 
     display(plt_power)
-    Plots.savefig(plt_power, "output/power_comparison.pdf")
+    Plots.savefig(plt_power, "output/default_power_comparison.pdf")
+    #println("Plot complete. Saved to output/default_power_comparison.pdf")
+
+end
+power_comparison()
+
+
+
+
+function normalised_power_comparison()
+
+    plt_power = Plots.plot(
+        time_axis, ones(size(total_power_trimmed)),
+        xlabel         = "Time (s)",
+        ylabel         = "Total Normalised Farm Power\n(-)",
+        title          = "Normalised Farm Power vs Time",
+        label          = "Baseline",
+        linewidth      = 3,
+        tickfontsize = 12,
+        guidefontsize = 12,
+        color          = :black,
+        legend         = :bottomright,
+        legendfontsize = 12,
+        grid           = true,
+        gridalpha      = 0.4
+    )
+
+    Plots.plot!(
+        plt_power,
+        time_axis, total_power_opt_trimmed_normalised,
+        label = "Optimised",
+        linewidth    = 3,
+        alpha = 0.8
+    )
+
+    Plots.plot!(
+        plt_power,
+        size          = (700, 350),
+        left_margin   = 5Plots.mm,
+        right_margin  = 15Plots.mm,
+        bottom_margin = 5Plots.mm,
+        xgrid         = true,
+        ygrid         = true,
+        gridalpha     = 0.4,
+        xticks        = 500:500:4000,
+        ylims         = (0.85, 1.15),
+        yticks        = 0.85:0.05:1.15
+    )
+
+    display(plt_power)
+    Plots.savefig(plt_power, "output/default_power_comparison_normalised.pdf")
+    #println("Plot complete. Saved to output/default_power_comparison_normalised.pdf")
+
 end
 
+normalised_power_comparison()
 
 plot_yaw_traces = false
 
@@ -131,10 +198,12 @@ if plot_yaw_traces
         ylabel         = "Yaw Angle (°)",
         title          = "Turbine Yaw Angles vs Time",
         label          = "T1",
-        lw             = 1.5,
+        linewidth      = 3,
+        tickfontsize = 12,
+        guidefontsize = 12,
         color          = colors[1],
         legend         = :topright,
-        legendfontsize = 7,
+        legendfontsize = 12,
         grid           = true,
         gridalpha      = 0.4
     )
@@ -144,7 +213,7 @@ if plot_yaw_traces
             plt_yaw,
             time_yaw, trimmed_yaw_data[:, i],
             label = "T$i",
-            lw    = 1.5,
+            linewidth    = 3,
             color = colors[i]
         )
     end
@@ -162,7 +231,7 @@ end
         time_axis, power_turbine_8_trimmed,
         ylabel         = "Turbine 8 Power\n(kW)",
         label          = "Turbine 8 (Baseline)",
-        lw             = 2,
+        linewidth      = 3,
         color          = :steelblue,
         linestyle      = :dash,
         legend         = :bottomright,
@@ -173,7 +242,7 @@ end
         ax2,
         time_axis, power_opt_turbine_8_trimmed,
         label          = "Turbine 8 (Opt)",
-        lw             = 2,
+        linewidth      = 3,
         color          = :coral,
         linestyle      = :dash,
         legendfontsize = 8,
@@ -201,9 +270,8 @@ println()
 
 
 
-plot_P_percent = false
 
-if plot_P_percent
+function plot_P_percent()
     P_percentage_increase = (total_power_opt_trimmed - total_power_trimmed) ./ total_power_trimmed * 100.0
     
     # Removed the comma at the end of this line
@@ -212,7 +280,7 @@ if plot_P_percent
         xlabel = "Time (s)",
         ylabel = "Increase over Baseline (%)",
         title  = "P% vs Time",
-        lw     = 2
+        linewidth = 3
     ) 
     
     # Removed the comma at the end of this line
@@ -232,11 +300,10 @@ if plot_P_percent
 end
 
 
-
-#plotting the increase over baseline:
 function plot_optimiser_trace()
     all_points = []
     time_offset = 0.0
+
     for tr in all_traces
         for record in tr
             t = record.metadata["time"] + time_offset
@@ -245,35 +312,54 @@ function plot_optimiser_trace()
         end
         time_offset += tr[end].metadata["time"]
     end
-    times       = [p[1] for p in all_points]
-    vals        = [p[2] for p in all_points]
-    running_min = accumulate(min, vals)
-    trace_matrix = hcat(times, running_min)
+
+    times        = [p[1] for p in all_points]
+    vals         = [p[2] for p in all_points]
+    running_min  = accumulate(min, vals)
+    trace_matrix = hcat(times, vals)
 
     increase_over_baseline = (-trace_matrix[:, 2] .- baseline_power_avg) ./ baseline_power_avg .* 100.0
 
-    # limit to ±3% range
     ymin, ymax = -1, 2
-
     plot(trace_matrix[:, 1], increase_over_baseline,
         xlabel        = "Time (s)",
         ylabel        = "Increase over Baseline\n(%)",
         title         = "Optimiser Convergence",
         ylims         = (ymin, ymax),
         yticks        = ymin:0.5:ymax,
-        color         = :steelblue,
-        linewidth     = 2,
-        legend        = false,
+        xticks        = 0:10:(trace_matrix[end, 1]+10),
+        color         = :black,
+        linewidth     = 3,
+        label         = "CMA-ES with restarts",
+        legend        = :bottomright,
+        background_color_legend = :white,
+        foreground_color_legend = :black,
+        legendfontsize = 12,
+        tickfontsize  = 12,
+        guidefontsize = 12,
         grid          = true,
         gridalpha     = 0.4,
         size          = (700, 350),
         left_margin   = 5Plots.mm,
         right_margin  = 15Plots.mm,
         bottom_margin = 5Plots.mm)
+
+    plot!(zeros(size(increase_over_baseline)), ls=:dash, color=:gray, linewidth=3, label="Baseline")
+    
+    plot!([first(trace_matrix[:, 1]), last(trace_matrix[:, 1])], [1.72, 1.72],
+        ls=:dash, color=:royalblue, linewidth=3, label="Global optimum")
+    
+    plot!([first(trace_matrix[:, 1]), last(trace_matrix[:, 1])], [1.72 * 0.9, 1.72 * 0.9],
+        ls=:dot, color=:darkorange, linewidth=3, label="90% to optimum")
+
     savefig("output/optimiser_convergence_over_time.pdf")
 end
-
 plot_optimiser_trace()
+
+
+nothing
+
+
 
 
 

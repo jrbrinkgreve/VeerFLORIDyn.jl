@@ -178,7 +178,6 @@ floridyn:
   twf_model: "heterogeneous"
 
 
-
 turbines:
     - id: 1
       type: DTU 10MW
@@ -260,6 +259,5 @@ turbines:
       a: 0.33
       yaw: 0
       ti: 0.06
-
-
+   
 

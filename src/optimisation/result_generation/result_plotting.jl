@@ -25,14 +25,16 @@ function regularisation_results()
         label="‖Δγ_opt‖₁",
         color=:coral,
         marker=:diamond,
-        linewidth=2,
+        linewidth=3,
         title="Regularised Optimisation Results",
         xticks=(lambda_vals, lambda_labels),
         xlabel="λ",
-        legendfontsize=8,
+        legendfontsize=12,
+        tickfontsize=10,
+        guidefontsize=12,
         legend=:bottomleft,
         grid=true,
-        gridalpha=0.4)
+        gridalpha=0.8)
         
 
     plot!(twinx(), lambda_vals, P_pct,
@@ -43,8 +45,11 @@ function regularisation_results()
         label="P%",
         color=:mediumseagreen,
         marker=:circle,
-        linewidth=2,
+        linewidth=3,
         legend=:topright,
+        legendfontsize=12,
+        tickfontsize=10,
+        guidefontsize=12,
         grid = false)
 
     plot(p1,
@@ -53,7 +58,7 @@ function regularisation_results()
         right_margin=15Plots.mm,
         ygrid=true,
         xgrid = true,
-        gridalpha=0.4,
+        gridalpha=0.8,
         bottom_margin=5Plots.mm)
 
     savefig("output/regularisation_results.pdf")
@@ -101,29 +106,34 @@ function l0_norm_results()
 
     p1 = plot(norm0_vals, norm1,
         ylabel="‖Δγ_opt‖₁\n(°)",
-        ylims=(10.0, 70.0),
-        yticks=10.0:10.0:70.0,
+        ylims=(15.0, 65.0),
+        yticks=15.0:5.0:65.0,
         label="‖Δγ_opt‖₁",
         color=:coral,
         marker=:diamond,
-        linewidth=2,
-        title="L0 Norm Constraint Results",
+        linewidth=3,
+        title="Sparsity Constraint Results",
         xticks=(norm0_vals, string.(norm0_vals)),
         xlabel="‖Δγ‖₀  (No. turbine actuations)",
-        legendfontsize=8,
+        legendfontsize=12,
+        tickfontsize=12,
+        guidefontsize=12,
         legend=:topleft,
         grid=true,
-        gridalpha=0.4)
+        gridalpha=0.8)
 
         
     plot!(twinx(), norm0_vals, P_pct,
         ylabel="P%\n(%)",
-        ylims=(-0.5, 2.5),
-        yticks=-0.5:0.5:2.5,
+        ylims=(-2.5, 2.5),
+        yticks=-2.5:0.5:2.5,
         label="P%",
         color=:mediumseagreen,
         marker=:circle,
-        linewidth=2,
+        linewidth=3,
+        legendfontsize=12,   # ← add
+        tickfontsize=12,     # ← add
+        guidefontsize=12,    # ← add
         legend=:bottomright,
         grid=false)
 
@@ -133,7 +143,7 @@ function l0_norm_results()
         right_margin=15Plots.mm,
         ygrid=true,
         xgrid=true,
-        gridalpha=0.4,
+        gridalpha=0.8,
         bottom_margin=5Plots.mm)
 
     savefig("output/l0_norm_results.pdf")
@@ -154,14 +164,16 @@ function runtime_results_threads()
         label="Runtime (s)",
         color=:coral,
         marker=:diamond,
-        linewidth=2,
+        linewidth=3,
         title="Optimisation Time vs. Workers",
         xticks=(n_workers, string.(n_workers)),
         xlabel="No. Workers",
-        legendfontsize=8,
-        legend=:bottomright,
+        legendfontsize=12,
+        tickfontsize=12,
+        guidefontsize=12,
+        legend=:top,
         grid=true,
-        gridalpha=0.4)
+        gridalpha=0.8)
     plot!(twinx(), n_workers, gc_pct,
         ylabel="GC Time\n(%)",
         ylims=(0.0, 40.0),
@@ -169,8 +181,8 @@ function runtime_results_threads()
         label="GC %",
         color=:mediumseagreen,
         marker=:circle,
-        linewidth=2,
-        legend=:topright,
+        linewidth=3,
+        legend=:right,
         grid=false)
     plot(p1,
         size=(700, 350),
@@ -178,8 +190,11 @@ function runtime_results_threads()
         right_margin=15Plots.mm,
         ygrid=true,
         xgrid=true,
-        gridalpha=0.4,
-        bottom_margin=5Plots.mm)
+        gridalpha=0.8,
+        legendfontsize=12,
+        tickfontsize=12,
+        guidefontsize=12,
+        bottom_margin=5Plots.mm),
     savefig("output/optimisation_time_results.pdf")
 end
 
@@ -201,21 +216,23 @@ function veer_results()
         label="P_base",
         color=:steelblue,
         marker=:circle,
-        linewidth=2,
+        linewidth=3,
         title="Optimal Yaw Steering Gain vs. Veer Gradient Strength",
         xticks=(alpha_vals, alpha_labels),
         xlabel="α (deg/m)",
-        legendfontsize=8,
+        legendfontsize=12,
+        tickfontsize=12,
+        guidefontsize=12,
         legend=:bottomleft,
         xrot=45,
         grid=true,
-        gridalpha=0.4)
+        gridalpha=0.8)
 
     plot!(alpha_vals, P_opt,
         label="P_opt",
         color=:mediumpurple,
         marker=:circle,
-        linewidth=2)
+        linewidth=3)
 
     plot!(twinx(), alpha_vals, P_pct,
         ylabel="P%\n(%)",
@@ -224,8 +241,10 @@ function veer_results()
         label="P%",
         color=:mediumseagreen,
         marker=:diamond,
-        linewidth=2,
-        legendfontsize=8,
+        linewidth=3,
+        legendfontsize=12,
+        tickfontsize=12,
+        guidefontsize=12,
         legend=:topright,
         grid=false)
 
@@ -235,7 +254,7 @@ function veer_results()
         right_margin=15Plots.mm,
         ygrid=true,
         xgrid=true,
-        gridalpha=0.4,
+        gridalpha=0.8,
         bottom_margin=5Plots.mm)
 
     savefig("output/veer_results.pdf")
@@ -263,23 +282,32 @@ function yaw_limit_results()
         label="‖Δγ_opt‖₁",
         color=:coral,
         marker=:diamond,
-        linewidth=2,
+        linewidth=3,
         title="Yaw Misalignment Limit Optimisation Results",
         xticks=(yaw_limits, yaw_labels),
         xlabel="Yaw Misalignment Limit (°)",
-        legendfontsize=8,
+        legendfontsize=12,
+        tickfontsize=12,
+        guidefontsize=12,
         legend=:topleft,
+        background_color_legend=:white,   # ← opaque white background
+        foreground_color_legend=:black,   # ← visible border
+        legend_foreground_color=:black,
+        legend_background_alpha=1.0,
         grid=true,
-        gridalpha=0.4)
-    Plots.plot!(twinx(), yaw_limits, P_pct,
+        gridalpha=0.8)
+   Plots.plot!(twinx(), yaw_limits, P_pct,
         ylabel="P%\n(%)",
         ylims=(0.0, 2.25),
         yticks=0.0:0.25:2.25,
         label="P%",
         color=:mediumseagreen,
         marker=:circle,
-        linewidth=2,
+        linewidth=3,
         legend=:bottomright,
+        legendfontsize=12,   # ← add
+        tickfontsize=12,     # ← add
+        guidefontsize=12,    # ← add
         grid=false)
     Plots.plot(p1,
         size=(700, 350),
@@ -287,28 +315,10 @@ function yaw_limit_results()
         right_margin=15Plots.mm,
         ygrid=true,
         xgrid=true,
-        gridalpha=0.4,
+        gridalpha=0.8,
         bottom_margin=5Plots.mm)
     Plots.savefig("output/yaw_limits_results.pdf")
 end
-
-
-
-
-
-load = JLD2.load
-# load("path")["key_name"] directly extracts the data
-res_1000  = load("src/optimisation/optim_data/minimisers/lambda_reg_1000.0.jld2")["result"]
-res_2000  = load("src/optimisation/optim_data/minimisers/lambda_reg_2000.0.jld2")["result"]
-res_3000  = load("src/optimisation/optim_data/minimisers/lambda_reg_3000.0.jld2")["result"]
-res_5000  = load("src/optimisation/optim_data/minimisers/lambda_reg_5000.0.jld2")["result"]
-res_7000  = load("src/optimisation/optim_data/minimisers/lambda_reg_7000.0.jld2")["result"]
-res_10000 = load("src/optimisation/optim_data/minimisers/lambda_reg_10000.0.jld2")["result"]
-res_20000 = load("src/optimisation/optim_data/minimisers/lambda_reg_20000.0.jld2")["result"]
-res_30000 = load("src/optimisation/optim_data/minimisers/lambda_reg_30000.0.jld2")["result"]
-res_50000 = load("src/optimisation/optim_data/minimisers/lambda_reg_50000.0.jld2")["result"]
-
-# Your plotting code goes here...
 
 
 
@@ -329,9 +339,9 @@ res_50000 = load("src/optimisation/optim_data/minimisers/lambda_reg_50000.0.jld2
 #convexity_analysis_results()
 #l0_norm_results()
 #veer_results()
-#runtime_results_threads()
+runtime_results_threads()
 #yaw_limit_results()
-plot_dynamic_response_lambda_reg()
+
 
 
 

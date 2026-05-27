@@ -7,7 +7,7 @@ using MAT
 using Plots
 
 
-rerun_sim = false
+rerun_sim = true
 if rerun_sim
 
 
@@ -88,8 +88,8 @@ vis.online = make_video #false
 
 
 @time wf, md, mi = run_floridyn(ControlPlots.plt, set, wf, wind, sim, con, vis, floridyn, floris)
-@time Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
-@time plot_flow_field(wf, X, Y, Z, vis; msr=AddedTurbulence, plt)  #VelReduction, AddedTurbulence, EffWind
+#@time Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
+#@time plot_flow_field(wf, X, Y, Z, vis; msr=AddedTurbulence, plt)  #VelReduction, AddedTurbulence, EffWind
 
 
 end
@@ -167,7 +167,7 @@ window_label = avg_window_sec >= 60 ? "$(avg_window_sec ÷ 60) min" : "$(avg_win
 subplots = map(1:n_turbines) do t
     Plots.plot(
         time_f, power_avg_f[:, t],
-        label="FLORIDyn", lw=1.5, ls=:solid, color=4,
+        label="FLORIDyn", lw=2, ls=:solid, color=4,
         title="Turbine $t",
         ylims=(0, maximum([maximum(power_avg_f), maximum(power_avg_j)])+0.5),  # adjust as needed
         xlabel= "Time (min)",   # only bottom row
@@ -175,8 +175,8 @@ subplots = map(1:n_turbines) do t
         legend= t == 1 ? :bottomleft : false,
         grid=true, titlefontsize=10,
     )
-    #Plots.plot!(time_f, power_avg_f_shear_uncorrected[:, t], label="FLORIDyn (uncorrected shear)", lw=1.5, ls=:solid, color=1)
-    Plots.plot!(time_j, power_avg_j[:, t], label="JHTDB LES", lw=1.5, ls=:solid, color=2)
+    #Plots.plot!(time_f, power_avg_f_shear_uncorrected[:, t], label="FLORIDyn (uncorrected shear)", lw=2, ls=:solid, color=1)
+    Plots.plot!(time_j, power_avg_j[:, t], label="JHTDB LES", lw=2, ls=:solid, color=2)
 end
 
 
@@ -199,7 +199,7 @@ display(p)
 subplots = map(1:n_turbines) do t
     Plots.plot(
         time_f, power_avg_f_normalised[:, t],
-        label="FLORIDyn", lw=1.5, ls=:solid,
+        label="FLORIDyn", lw=2, ls=:solid,
         title="Turbine $t",
         ylims=(0.0, 1.8),  # adjust as needed
         xlabel= "Time (min)",   # only bottom row
@@ -207,7 +207,7 @@ subplots = map(1:n_turbines) do t
         legend= t == 1 ? :bottomright : false,
         grid=true, titlefontsize=10,
     )
-    Plots.plot!(time_j, power_avg_j_normalised[:, t], label="JHTDB LES", lw=1.5, ls=:solid)
+    Plots.plot!(time_j, power_avg_j_normalised[:, t], label="JHTDB LES", lw=2, ls=:solid)
 end
 
 p = Plots.plot(subplots...,
@@ -276,7 +276,7 @@ t_raw_trimmed       = (seconds_to_skip : n_timesteps-1) .* dt          # seconds
 t_jhtdb_trimmed     = t_jhtdb_raw[seconds_to_skip+1:end]               # seconds
 
 # ── Averaging window ─────────────────────────────────────────────────────────
-avg_window_sec = 5
+avg_window_sec = 60
 
 
 function window_average(mat, window)
@@ -303,6 +303,8 @@ time_j = ((1:nw_j) .* avg_window_sec .+ seconds_to_skip) ./ 60
 
 #choose: absolute or normalised 
 
+#=
+
 
 # ── 10 subplots ──────────────────────────────────────────────────────────────
 window_label = avg_window_sec >= 60 ? "$(avg_window_sec ÷ 60) min" : "$(avg_window_sec) sec"
@@ -312,7 +314,7 @@ ylim_max = maximum([maximum(P_avg_f), maximum(P_avg_j)]) + 0.2
 subplots = map(1:n_cols) do k
     Plots.plot(
         time_f, P_avg_f[k, :],
-        label="FLORIDyn", lw=1.5, ls=:solid, color=1,
+        label="FLORIDyn", lw=2, ls=:solid, color=1,
         title="Column $k",
         xlims=(10, 60),
         ylims=(0, ylim_max),
@@ -321,7 +323,7 @@ subplots = map(1:n_cols) do k
         legend=k == 1 ? :bottomright : false,
         grid=true, titlefontsize=10,
     )
-    Plots.plot!(time_j, P_avg_j[k, :], label="JHTDB LES", lw=1.5, ls=:solid, color=2)
+    Plots.plot!(time_j, P_avg_j[k, :], label="JHTDB LES", lw=2, ls=:solid, color=2)
 end
 
 p = Plots.plot(subplots...,
@@ -335,8 +337,8 @@ display(p)
 Plots.savefig(p, "output/CNBL_comparison_per_column.pdf")
 
 
-#=
 
+=#
 
 
 # ── 10 subplots, normalised by Column 1 ──────────────────────────────────────
@@ -346,27 +348,39 @@ norm_f = mean(P_avg_f[1, :])
 norm_j = mean(P_avg_j[1, :])
 
 P_avg_f_norm = P_avg_f ./ norm_f
+#P_avg_f_norm_proper_TI_estimate = P_avg_f_norm
+P_avg_f_norm_no_TI_estimate = P_avg_f_norm
+
+
 P_avg_j_norm = P_avg_j ./ norm_j
 
 window_label = avg_window_sec >= 60 ? "$(avg_window_sec ÷ 60) min" : "$(avg_window_sec) sec"
 
 ylim_max = maximum([maximum(P_avg_f_norm), maximum(P_avg_j_norm)]) + 0.05
 
+
 subplots = map(1:n_cols) do k
-    Plots.plot(
-        time_f, P_avg_f_norm[k, :],
-        label="FLORIDyn", lw=1.5, ls=:solid, color=1,
+    p = Plots.plot(
+        time_f, P_avg_f_norm_proper_TI_estimate[k, :],
+        label="FLORIDyn + TI estimate", lw=2, ls=:solid, color=1,
         title="Column $k",
-        xlims=(10, 60),
-        ylims=(0, ylim_max),
+        xlims=(10, 60), ylims=(0, ylim_max),
         xlabel="Time (min)",
         ylabel=mod(k, 2) == 1 ? "Normalised power (–)" : "",
         legend=k == 1 ? :bottomright : false,
         grid=true, titlefontsize=10,
     )
-    Plots.plot!(time_j, P_avg_j_norm[k, :], label="JHTDB LES", lw=1.5, ls=:solid, color=2)
-    Plots.hline!([1.0], lw=0.8, ls=:dot, color=:black, label=false)  # reference line at 1
+    Plots.plot!(p, time_f, P_avg_f_norm_no_TI_estimate[k, :],
+        label="FLORIDyn 50% off TI estimate", lw=2, ls=:dash, color=3)
+    Plots.plot!(p, time_j, P_avg_j_norm[k, :],
+        label="JHTDB LES", lw=2, ls=:solid, color=2)
+    Plots.hline!(p, [1.0], lw=0.8, ls=:dot, color=:black, label=false)
+    p
 end
+
+
+
+
 
 p = Plots.plot(subplots...,
                layout=(5, 2),
@@ -379,7 +393,7 @@ display(p)
 Plots.savefig(p, "output/CNBL_comparison_per_column_normalised.pdf")
 
 
-=#
+
 
 
 nothing
