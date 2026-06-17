@@ -50,13 +50,13 @@ vis.online = false #false
 
 @time wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris)
 @time Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis)
-@time plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt)  #VelReduction, AddedTurbulence, EffWind
+@time plot_flow_field(wf, X, Y, Z, vis; msr=AddedTurbulence, plt)  #VelReduction, AddedTurbulence, EffWind
 
 
 
 loc = 2200
 Z, A, Zh = calcFlowFieldCrossSection(set, wf, wind, floris; fixed=loc, xlims=(1000.0, 2000.0), orientation=:WE)
-plotFlowFieldCrossSection(ControlPlots.plt, wf, A, Zh, Z, vis, loc; orientation=:WE)
+plotFlowFieldCrossSection(ControlPlots.plt, wf, A, Zh, Z, vis,  loc; orientation=:WE)
 
 
 

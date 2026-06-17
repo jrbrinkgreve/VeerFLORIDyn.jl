@@ -88,9 +88,9 @@ function power_comparison()
         time_axis, total_power_trimmed,
         xlabel         = "Time (s)",
         ylabel         = "Total Farm Power\n(MW)",
-        title          = "Total Farm Power vs Time",
+        #title          = "Total Farm Power vs Time",
         label          = "Baseline",
-        linewidth      = 3,
+        linewidth      = 4,
         color          = :black,
         legend         = :bottomright,
         legendfontsize = 12,
@@ -103,8 +103,8 @@ function power_comparison()
     Plots.plot!(
         plt_power,
         time_axis, total_power_opt_trimmed,
-        label = "Optimised",
-        linewidth    = 3,
+        label = "Proposed Control",
+        linewidth    = 4,
         alpha = 0.8
     )
 
@@ -117,7 +117,9 @@ function power_comparison()
         xgrid         = true,
         ygrid         = true,
         gridalpha     = 0.4,
-        xticks        = 500:500:4000
+        xticks        = 500:500:4000,
+        ylims =       (30, 46),
+        yticks        = 30:2:46
     )
 
     display(plt_power)
@@ -136,9 +138,9 @@ function normalised_power_comparison()
         time_axis, ones(size(total_power_trimmed)),
         xlabel         = "Time (s)",
         ylabel         = "Total Normalised Farm Power\n(-)",
-        title          = "Normalised Farm Power vs Time",
+        #title          = "Normalised Farm Power vs Time",
         label          = "Baseline",
-        linewidth      = 3,
+        linewidth      = 4,
         tickfontsize = 12,
         guidefontsize = 12,
         color          = :black,
@@ -151,8 +153,8 @@ function normalised_power_comparison()
     Plots.plot!(
         plt_power,
         time_axis, total_power_opt_trimmed_normalised,
-        label = "Optimised",
-        linewidth    = 3,
+        label = "Proposed Control",
+        linewidth    = 4,
         alpha = 0.8
     )
 
@@ -198,7 +200,7 @@ if plot_yaw_traces
         ylabel         = "Yaw Angle (°)",
         title          = "Turbine Yaw Angles vs Time",
         label          = "T1",
-        linewidth      = 3,
+        linewidth      = 4,
         tickfontsize = 12,
         guidefontsize = 12,
         color          = colors[1],
@@ -213,7 +215,7 @@ if plot_yaw_traces
             plt_yaw,
             time_yaw, trimmed_yaw_data[:, i],
             label = "T$i",
-            linewidth    = 3,
+            linewidth    = 4,
             color = colors[i]
         )
     end
@@ -280,7 +282,7 @@ function plot_P_percent()
         xlabel = "Time (s)",
         ylabel = "Increase over Baseline (%)",
         title  = "P% vs Time",
-        linewidth = 3
+        linewidth = 4
     ) 
     
     # Removed the comma at the end of this line
@@ -324,12 +326,12 @@ function plot_optimiser_trace()
     plot(trace_matrix[:, 1], increase_over_baseline,
         xlabel        = "Time (s)",
         ylabel        = "Increase over Baseline\n(%)",
-        title         = "Optimiser Convergence",
+        #title         = "Optimiser Convergence",
         ylims         = (ymin, ymax),
         yticks        = ymin:0.5:ymax,
         xticks        = 0:10:(trace_matrix[end, 1]+10),
         color         = :black,
-        linewidth     = 3,
+        linewidth     = 4,
         label         = "CMA-ES with restarts",
         legend        = :bottomright,
         background_color_legend = :white,
@@ -344,17 +346,25 @@ function plot_optimiser_trace()
         right_margin  = 15Plots.mm,
         bottom_margin = 5Plots.mm)
 
-    plot!(zeros(size(increase_over_baseline)), ls=:dash, color=:gray, linewidth=3, label="Baseline")
+    plot!(zeros(size(increase_over_baseline)), ls=:dash, color=:gray, linewidth=4, label="Baseline")
     
     plot!([first(trace_matrix[:, 1]), last(trace_matrix[:, 1])], [1.72, 1.72],
-        ls=:dash, color=:royalblue, linewidth=3, label="Global optimum")
+        ls=:dash, color=:royalblue, linewidth=4, label="Global optimum")
     
     plot!([first(trace_matrix[:, 1]), last(trace_matrix[:, 1])], [1.72 * 0.9, 1.72 * 0.9],
-        ls=:dot, color=:darkorange, linewidth=3, label="90% to optimum")
+        ls=:dot, color=:darkorange, linewidth=4, label="90% to optimum")
 
     savefig("output/optimiser_convergence_over_time.pdf")
 end
 plot_optimiser_trace()
+
+#using JLD2
+#@save "src/optimisation/optim_data/minimisers/veer_$(floris.veer_gradient).jld2" result
+
+
+
+
+
 
 
 nothing

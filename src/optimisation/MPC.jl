@@ -21,10 +21,6 @@ repeat
 
 =#
 
-include("MPC_functions.jl")
-
-
-
 
 
 
@@ -74,9 +70,7 @@ while time < end_time
     all_data = load_all_data()
 
 
-
-
-    write_horizon_limited_csvs(horizon, time, all_data, path_to_CSVs)
+ write_horizon_limited_csvs(horizon, time, all_data, path_to_CSVs)
 
     
     
@@ -89,35 +83,8 @@ while time < end_time
     
     display_MPC_control()
 
-
-
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+end 
 nothing
-
-
-
-
-
 
 
 

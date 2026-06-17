@@ -55,3 +55,31 @@ nothing
 
 #@save "../optim_data/solution_variance_tests.jld2" all_results min_vals t_vals yaw_vals p_increase
 #@load "../optim_data/baseline_init_solution_variance_tests.jld2" all_results min_vals t_vals yaw_vals p_increase
+
+
+
+
+
+
+
+using Plots, Statistics
+
+# Plot histogram of stochastic optima
+p = histogram(-min_vals,
+    bins        = 30,
+    color       = :steelblue,
+    alpha       = 0.7,
+    xlabel      = "Optimised Power (kW)",
+    ylabel      = "Counts",
+    title       = "Distribution CMA-ES solutions",
+    legend      = :topright,
+    label       = "Optima samples",
+    xticks     = 3980:4000,
+    xlims = (3980, 3990),
+)
+
+
+display(p)
+savefig(p, "output/optima_distribution.pdf")
+
+nothing

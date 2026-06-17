@@ -45,9 +45,9 @@ function plot_distance_to_optimum(; baseline=0.0, optimum = 0.0)
     target_up   = baseline - 0.9 * (optimum - baseline)
 
     p = Plots.plot(
-        title="Distance to Optimum",
+        #title="Distance to Optimum",
         xlabel="Iteration",
-        ylabel="-P_avg (W)",
+        ylabel="-P (kW)",
         legend=:topright,
         background_color_legend=:white,
         foreground_color_legend=:black,
@@ -65,26 +65,26 @@ function plot_distance_to_optimum(; baseline=0.0, optimum = 0.0)
     Plots.hline!(p, [baseline],
         label="Baseline",
         color=:gray,
-        linewidth=3,
+        linewidth=4,
         linestyle=:dash)
     Plots.hline!(p, [optimum],
         label="Global optimum",
         color=:royalblue,
-        linewidth=3,
+        linewidth=4,
         linestyle=:dash)
 
     # 90% threshold below baseline (toward optimum)
     Plots.hline!(p, [target_down],
         label="90% to optimum",
         color=:darkorange,
-        linewidth=3,
+        linewidth=4,
         linestyle=:dot)
                 
         let offset = 0
             for (i, trace) in enumerate(all_traces)
                 iters  = [t.iteration + offset for t in trace]
                 values = [t.value              for t in trace]
-                Plots.plot!(p, iters, values, lw=3, color=:black,
+                Plots.plot!(p, iters, values, lw=4, color=:black,
                     label = i == 1 ? "CMA-ES with restarts" : false)
                 offset = isempty(iters) ? offset : iters[end]
             end

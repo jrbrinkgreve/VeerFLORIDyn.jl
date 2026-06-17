@@ -60,18 +60,6 @@ nothing
 
 
 
-x =3951.13
-
-
-compare = 3855.04
-
-round((x - compare) / compare * 100, digits=2) 
-
-
-
-
-
-
 
 
 

@@ -233,6 +233,7 @@ function parallel_costfunction(plt, set::Settings, wf::WindFarm, wind::Wind, sim
 
         #yaw matrix construction
         construct_yaw_matrix_dynamic!(state.con.yaw_data, x, state.sim, state.wf, opt_set)
+     
         
         #get data for penalty function
         sim_times = @view state.con.yaw_data[:, 1]

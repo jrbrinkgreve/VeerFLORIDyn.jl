@@ -1,6 +1,7 @@
 using JLD2
 using Plots
 using Evolutionary
+using LaTeXStrings
 
 plot = Plots.plot
 savefig = Plots.savefig
@@ -19,33 +20,33 @@ function regularisation_results()
 
     p1 = plot(lambda_vals, norm1,
         xscale=:log10,
-        ylabel="‖Δγ_opt‖₁\n(°)",
+        ylabel="Yawing magnitude (°)",
         ylims=(0.0, 60.0),
         yticks=0.0:5.0:60.0,
-        label="‖Δγ_opt‖₁",
+        label="Yawing magnitude",
         color=:coral,
         marker=:diamond,
-        linewidth=3,
-        title="Regularised Optimisation Results",
+        linewidth=4,
+
         xticks=(lambda_vals, lambda_labels),
-        xlabel="λ",
+        xlabel="Regularisation parameter λ",
         legendfontsize=12,
         tickfontsize=10,
         guidefontsize=12,
         legend=:bottomleft,
         grid=true,
-        gridalpha=0.8)
+        gridalpha=0.4)
         
 
     plot!(twinx(), lambda_vals, P_pct,
         xscale=:log10,
-        ylabel="P%\n(%)",
+        ylabel="P%",
         ylims=(-3.0, 3.0),
         yticks=-3.0:0.5:3.0,
         label="P%",
         color=:mediumseagreen,
         marker=:circle,
-        linewidth=3,
+        linewidth=4,
         legend=:topright,
         legendfontsize=12,
         tickfontsize=10,
@@ -55,17 +56,14 @@ function regularisation_results()
     plot(p1,
         size=(700, 350),
         left_margin=5Plots.mm,
-        right_margin=15Plots.mm,
+        right_margin=5Plots.mm,
         ygrid=true,
         xgrid = true,
-        gridalpha=0.8,
-        bottom_margin=5Plots.mm)
+        gridalpha=0.4,
+        bottom_margin=10Plots.mm)
 
     savefig("output/regularisation_results.pdf")
 end
-
-
-
 
 
 #------------------------------------------------------------------------------------------------------------------
@@ -105,46 +103,46 @@ function l0_norm_results()
     norm1  = [20.45, 28.33, 51.91, 55.87, 61.11]
 
     p1 = plot(norm0_vals, norm1,
-        ylabel="‖Δγ_opt‖₁\n(°)",
+        ylabel="Yawing magnitude (°)",
         ylims=(15.0, 65.0),
         yticks=15.0:5.0:65.0,
-        label="‖Δγ_opt‖₁",
+        label="Yawing magnitude",
         color=:coral,
         marker=:diamond,
-        linewidth=3,
-        title="Sparsity Constraint Results",
+        linewidth=4,
+   
         xticks=(norm0_vals, string.(norm0_vals)),
-        xlabel="‖Δγ‖₀  (No. turbine actuations)",
+        xlabel="No. turbine actuations",
         legendfontsize=12,
         tickfontsize=12,
         guidefontsize=12,
         legend=:topleft,
         grid=true,
-        gridalpha=0.8)
+        gridalpha=0.4)
 
         
     plot!(twinx(), norm0_vals, P_pct,
-        ylabel="P%\n(%)",
+        ylabel="P%",
         ylims=(-2.5, 2.5),
         yticks=-2.5:0.5:2.5,
         label="P%",
         color=:mediumseagreen,
         marker=:circle,
-        linewidth=3,
-        legendfontsize=12,   # ← add
-        tickfontsize=12,     # ← add
-        guidefontsize=12,    # ← add
+        linewidth=4,
+        legendfontsize=12,
+        tickfontsize=12,
+        guidefontsize=12,
         legend=:bottomright,
         grid=false)
 
     plot(p1,
         size=(700, 350),
         left_margin=5Plots.mm,
-        right_margin=15Plots.mm,
+        right_margin=5Plots.mm,
         ygrid=true,
         xgrid=true,
-        gridalpha=0.8,
-        bottom_margin=5Plots.mm)
+        gridalpha=0.4,
+        bottom_margin=10Plots.mm)
 
     savefig("output/l0_norm_results.pdf")
 end
@@ -164,8 +162,8 @@ function runtime_results_threads()
         label="Runtime (s)",
         color=:coral,
         marker=:diamond,
-        linewidth=3,
-        title="Optimisation Time vs. Workers",
+        linewidth=4,
+     
         xticks=(n_workers, string.(n_workers)),
         xlabel="No. Workers",
         legendfontsize=12,
@@ -181,87 +179,90 @@ function runtime_results_threads()
         label="GC %",
         color=:mediumseagreen,
         marker=:circle,
-        linewidth=3,
+        linewidth=4,
         legend=:right,
         grid=false)
     plot(p1,
         size=(700, 350),
-        left_margin=5Plots.mm,
-        right_margin=15Plots.mm,
+        left_margin=10Plots.mm,
+        right_margin=10Plots.mm,
         ygrid=true,
         xgrid=true,
         gridalpha=0.8,
         legendfontsize=12,
         tickfontsize=12,
         guidefontsize=12,
-        bottom_margin=5Plots.mm),
+        bottom_margin=10Plots.mm),
     savefig("output/optimisation_time_results.pdf")
 end
 
 
 function veer_results()
-    alpha_vals = [0.0, 0.01, 0.03, 0.05, 0.07, 0.1, 0.15, 0.2]
+   alpha_vals = [0.0, 0.01, 0.03, 0.05, 0.07, 0.1, 0.15, 0.2]
 
-    P_base = [3916.40, 3914.99, 3904.37, 3884.84, 3859.09, 3814.67, 3740.25, 3678.85]
-    P_opt  = [3983.64, 3981.16, 3966.13, 3944.19, 3914.75, 3866.63, 3790.86, 3728.18]
-    P_pct  = [1.72, 1.69, 1.58, 1.53, 1.44, 1.36, 1.35, 1.34]
-    norm1  = [51.91, 51.46, 51.55, 50.27, 49.21, 46.51, 41.85, 39.49]
+    P_base = [3440.85, 3439.67, 3424.75, 3397.91, 3367.04, 3329.73, 3308.97, 3316.02]
+    P_opt  = [3663.36, 3660.22, 3639.21, 3600.08, 3542.89, 3484.71, 3416.02, 3395.63]
+    P_opt_no_veer  = [3663.36, 3660.21, 3635.87, 3592.45, 3540.28, 3468.85, 3395.36, 3373.68]
+    P_pct  = [6.47, 6.41, 6.26, 5.95, 5.22, 4.65, 3.23, 2.4]
+    P_pct_no_veer  = (P_opt_no_veer .- P_base) ./ P_base .* 100
+    norm1  = [37.22, 35.48, 33.31, 34.36, 33.31, 31.61, 26.05, 26.91]
 
     alpha_labels = string.(alpha_vals)
 
-   p1 = plot(alpha_vals, P_base,
-        ylabel="Power\n(kW)",
-        ylims=(3650.0, 4050.0),
-        yticks=3650.0:50.0:4050.0,
-        label="P_base",
+    p1 = plot(alpha_vals, P_base,
+        ylabel="Average Power\n(kW)",
+        ylims=(3100.0, 3800.0),
+        yticks=3000.0:100.0:3800.0,
+        label="Baseline",
         color=:steelblue,
         marker=:circle,
-        linewidth=3,
-        title="Optimal Yaw Steering Gain vs. Veer Gradient Strength",
+        linewidth=4,
+      
         xticks=(alpha_vals, alpha_labels),
-        xlabel="α (deg/m)",
+        xlabel="Veer gradient α (deg/m)",
         legendfontsize=12,
         tickfontsize=12,
         guidefontsize=12,
         legend=:bottomleft,
         xrot=45,
         grid=true,
-        gridalpha=0.8)
+        gridalpha=0.4)
 
     plot!(alpha_vals, P_opt,
-        label="P_opt",
-        color=:mediumpurple,
+        label="Proposed controller",
+        color=:coral,
         marker=:circle,
-        linewidth=3)
+        linewidth=4)
 
-    plot!(twinx(), alpha_vals, P_pct,
-        ylabel="P%\n(%)",
-        ylims=(1.0, 2.0),
-        yticks=1.0:0.25:2.0,
+
+
+    ax2 = twinx()
+    plot!(ax2, alpha_vals, P_pct,
+        ylabel="P%",
+        ylims=(1.0, 8.0),
+        yticks=1.0:1.0:8.0,
         label="P%",
         color=:mediumseagreen,
         marker=:diamond,
-        linewidth=3,
-        legendfontsize=12,
+        linewidth=4,
+        legendfontsize=14,
         tickfontsize=12,
         guidefontsize=12,
         legend=:topright,
         grid=false)
 
+ 
+
     plot(p1,
-        size=(700, 350),
-        left_margin=5Plots.mm,
-        right_margin=15Plots.mm,
+        size=(1000, 350),
+        left_margin=10Plots.mm,
+        right_margin=10Plots.mm,
         ygrid=true,
         xgrid=true,
-        gridalpha=0.8,
-        bottom_margin=5Plots.mm)
-
+        gridalpha=0.4,
+        bottom_margin=10Plots.mm)
     savefig("output/veer_results.pdf")
 end
-
-
-
 
 
 function yaw_limit_results()
@@ -276,70 +277,106 @@ function yaw_limit_results()
     norm1  = [31.27, 36.92, 44.09, 51.44, 54.79]
 
     p1 = Plots.plot(yaw_limits, norm1,
-        ylabel="‖Δγ_opt‖₁\n(°)",
-        ylims=(15.0, 60.0),
-        yticks=15.0:5:60.0,
-        label="‖Δγ_opt‖₁",
+        ylabel="Yawing magnitude (°)",
+        ylims=(25.0, 70.0),
+        yticks=25.0:5:70.0,
+        label = "Yawing magnitude",
         color=:coral,
         marker=:diamond,
-        linewidth=3,
-        title="Yaw Misalignment Limit Optimisation Results",
+        linewidth=4,
+
         xticks=(yaw_limits, yaw_labels),
         xlabel="Yaw Misalignment Limit (°)",
         legendfontsize=12,
         tickfontsize=12,
         guidefontsize=12,
         legend=:topleft,
-        background_color_legend=:white,   # ← opaque white background
-        foreground_color_legend=:black,   # ← visible border
+        background_color_legend=:white,
+        foreground_color_legend=:black,
         legend_foreground_color=:black,
         legend_background_alpha=1.0,
         grid=true,
-        gridalpha=0.8)
+        gridalpha=0.4)
    Plots.plot!(twinx(), yaw_limits, P_pct,
-        ylabel="P%\n(%)",
+        ylabel="P%",
         ylims=(0.0, 2.25),
         yticks=0.0:0.25:2.25,
         label="P%",
         color=:mediumseagreen,
         marker=:circle,
-        linewidth=3,
+        linewidth=4,
         legend=:bottomright,
-        legendfontsize=12,   # ← add
-        tickfontsize=12,     # ← add
-        guidefontsize=12,    # ← add
+        legendfontsize=14,
+        tickfontsize=12,
+        guidefontsize=14,
         grid=false)
     Plots.plot(p1,
         size=(700, 350),
         left_margin=5Plots.mm,
-        right_margin=15Plots.mm,
+        right_margin=5Plots.mm,
         ygrid=true,
         xgrid=true,
-        gridalpha=0.8,
+        gridalpha=0.4,
         bottom_margin=5Plots.mm)
     Plots.savefig("output/yaw_limits_results.pdf")
 end
 
 
 
+function veer_results_comparing_controller()
+    alpha_vals = [0.0, 0.01, 0.03, 0.05, 0.07, 0.1, 0.15, 0.2]
+    P_base = [3440.85, 3439.67, 3424.75, 3397.91, 3367.04, 3329.73, 3308.97, 3316.02]
+    P_opt  = [3663.36, 3660.22, 3639.21, 3600.08, 3542.89, 3484.71, 3416.02, 3395.63]
+    P_opt_no_veer  = [3663.36, 3660.21, 3635.87, 3592.45, 3540.28, 3468.85, 3395.36, 3373.68]
+    P_pct  = [6.47, 6.41, 6.26, 5.95, 5.22, 4.65, 3.23, 2.4]
+    P_pct_no_veer  = (P_opt_no_veer .- P_base) ./ P_base .* 100
+    P_diff = P_pct .- P_pct_no_veer
+    alpha_labels = string.(alpha_vals)
+
+    p1 = plot(alpha_vals, P_pct,
+        ylabel="P%\n(%)",
+        ylims=(1.0, 7.0),
+        yticks=0.0:1.0:8.0,
+        label=L"P_\%\ \mathrm{(veer\text{-}aware)}",
+        color=:mediumseagreen,
+        marker=:diamond,
+        linewidth=4,
+       
+        xticks=(alpha_vals, alpha_labels),
+        xlabel=L"\alpha\ \mathrm{(deg/m)}",
+        legendfontsize=12,
+        tickfontsize=12,
+        guidefontsize=12,
+        legend=:topright,
+        xrot=45,
+        grid=true,
+        gridalpha=0.4)
+    plot!(alpha_vals, P_pct_no_veer,
+        label=L"P_\%\ \mathrm{(veer\text{-}unaware)}",
+        color=:red,
+        marker=:dtriangle,
+        linewidth=4,
+        linestyle=:dash)
 
 
-
-
-
-
-
-
-
-
-
+    plot(p1,
+        size=(700, 350),
+        left_margin=10Plots.mm,
+        right_margin=10Plots.mm,
+        ygrid=true,
+        xgrid=true,
+        gridalpha=0.4,
+        bottom_margin=10Plots.mm)
+    savefig("output/veer_results_comparing_controller.pdf")
+end
 
 
 #regularisation_results()
 #convexity_analysis_results()
 #l0_norm_results()
-#veer_results()
-runtime_results_threads()
+veer_results()
+#veer_results_comparing_controller()
+#runtime_results_threads()
 #yaw_limit_results()
 
 

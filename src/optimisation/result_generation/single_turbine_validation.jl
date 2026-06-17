@@ -39,8 +39,15 @@ xticks=(yaw_discrete, string.(yaw_discrete)),
 yticks=-12:2:4,
 ylims=(-12.5, 4.5),
 legend=:bottomright,
-size=(600, 300),
+size=(600, 350),
 leftmargin=5Plots.mm,
+rightmargin=5Plots.mm,
+bottommargin=7Plots.mm,
+grid=false,
+legendfontsize=10,
+gridfontsize=12,
+tickfontsize=12,
+guidefontsize = 12,
 )
 
 # Add the 0% reference line (dashed grey)
@@ -74,12 +81,13 @@ color=config[:color],
 marker=config[:marker],
 markerstrokecolor=config[:color],
 markerfacecolor=:white, # Open markers like reference
-markersize=6,
-linewidth=1.5
+markersize=8,
+linewidth=2,
+
 )
 end
 
 
 
 display(p)
-savefig("output/veer_power_validation.pdf")
+savefig("output/ma_images.pdf-3.pdf")

@@ -399,6 +399,117 @@ Optimized average L1 yaw change norm: 5.14 deg
 
 
 
+================================================================================================
+VEER RESULTS: 3% TI, 210 - 190deg wind direction change
+
+0 deg/m
+
+
+Total optimization time: 227.41 seconds
+Maximum yaw misalignment: 24.976 degrees, at time step CartesianIndex(910, 6)
+
+Baseline average power per turbine:  3440.85 kW
+Optimized average power per turbine: 3663.36 kW
+Increase over baseline: 6.47 %
+
+Baseline average L1 yaw change norm: 17.08 deg
+Optimized average L1 yaw change norm: 37.22 deg
+
+
+
+
+
+
+
+
+
+
+0.01deg/m
+
+
+Total optimization time: 248.22 seconds
+Maximum yaw misalignment: 24.988 degrees, at time step CartesianIndex(3374, 1)
+
+Baseline average power per turbine:  3439.67 kW
+Optimized average power per turbine: 3660.22 kW
+Increase over baseline: 6.41 %
+
+Baseline average L1 yaw change norm: 17.08 deg
+Optimized average L1 yaw change norm: 35.48 deg
+
+
+
+
+
+
+
+
+0.03deg/m
+
+Total optimization time: 240.54 seconds
+Maximum yaw misalignment: 24.998 degrees, at time step CartesianIndex(3279, 1)
+
+Baseline average power per turbine:  3424.75 kW
+Optimized average power per turbine: 3639.21 kW
+Increase over baseline: 6.26 %
+
+Baseline average L1 yaw change norm: 17.08 deg
+Optimized average L1 yaw change norm: 33.31 deg
+
+
+
+
+
+0.05deg/m
+
+Total optimization time: 260.1 seconds
+Maximum yaw misalignment: 24.983 degrees, at time step CartesianIndex(3372, 1)
+
+Baseline average power per turbine:  3397.91 kW
+Optimized average power per turbine: 3600.08 kW
+Increase over baseline: 5.95 %
+
+Baseline average L1 yaw change norm: 17.08 deg
+Optimized average L1 yaw change norm: 34.36 deg
+
+
+
+
+
+
+
+0.07deg/m
+Total optimization time: 242.96 seconds
+Maximum yaw misalignment: 24.983 degrees, at time step CartesianIndex(3502, 1)
+
+Baseline average power per turbine:  3367.04 kW
+Optimized average power per turbine: 3542.89 kW
+Increase over baseline: 5.22 %
+
+Baseline average L1 yaw change norm: 17.08 deg
+Optimized average L1 yaw change norm: 33.31 deg
+
+
+
+
+
+
+
+
+
+
+
+0.10deg/m   
+
+Total optimization time: 252.68 seconds
+Maximum yaw misalignment: 24.95 degrees, at time step CartesianIndex(1047, 4)
+
+Baseline average power per turbine:  3329.73 kW
+Optimized average power per turbine: 3484.71 kW
+Increase over baseline: 4.65 %
+
+Baseline average L1 yaw change norm: 17.08 deg
+Optimized average L1 yaw change norm: 31.61 deg
 
 
 
@@ -411,6 +522,61 @@ Optimized average L1 yaw change norm: 5.14 deg
 
 
 
+
+
+0.15deg/m
+
+Total optimization time: 260.95 seconds
+Maximum yaw misalignment: 24.988 degrees, at time step CartesianIndex(878, 6)
+
+Baseline average power per turbine:  3308.97 kW
+Optimized average power per turbine: 3416.02 kW
+Increase over baseline: 3.23 %
+
+Baseline average L1 yaw change norm: 17.08 deg
+Optimized average L1 yaw change norm: 26.05 deg
+
+
+
+
+
+
+
+
+
+
+
+
+0.20deg/m
+
+Total optimization time: 268.8 seconds
+Maximum yaw misalignment: 24.995 degrees, at time step CartesianIndex(1039, 2)
+
+Baseline average power per turbine:  3316.02 kW
+Optimized average power per turbine: 3395.63 kW
+Increase over baseline: 2.4 %
+
+Baseline average L1 yaw change norm: 17.08 deg
+Optimized average L1 yaw change norm: 26.91 deg
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+================================================================================================
+
+
+
+OLD RESULTS: 6.2% TI AND 220-180DEG WIND: too much
 
 
 ================================================================================================

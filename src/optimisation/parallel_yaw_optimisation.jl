@@ -98,6 +98,7 @@ set_sigma0 = 0.05                   # 0.05   #for time optim, 0.01 works well in
 set_sigma0_secondary = 0.02         # 0.02   #for second run with yaws, to reduce the search area and converge faster, can play around with this #0.01
 set_sigma0_final = 0.01             # 0.01  #for final run 
 
+#output
 verbose = true
 trace_steps = 5
 
@@ -278,15 +279,15 @@ println("Maximum yaw misalignment: $(round(val, digits=3)) degrees, at time step
 
 
 #plot flowfield
-#=
-construct_yaw_matrix_dynamic!(con.yaw_data, x0, sim, wf, opt_set);
-#construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, opt_set);
+
+#construct_yaw_matrix_dynamic!(con.yaw_data, x0, sim, wf, opt_set);
+construct_yaw_matrix_dynamic!(con.yaw_data, result.minimizer, sim, wf, opt_set);
 wf, md, mi = run_floridyn(plt, set, wf, wind, sim, con, vis, floridyn, floris);
 
 #top-view
 Z, X, Y = calcFlowField(set, wf, wind, floris; plt, vis);
-plot_flow_field(wf, X, Y, Z, vis; msr=VelReduction, plt);
-=#
+plot_flow_field(wf, X, Y, Z, vis; msr=AddedTurbulence, plt);
+
 
 
 #region cross-sections #use either
